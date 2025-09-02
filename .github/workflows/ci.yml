@@ -1,0 +1,29 @@
+name: CI – React/Electron/Tailwind
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Unit Tests
+        run: pnpm test -- --ci --reporter=default
+      - name: Build Renderer
+        run: pnpm --filter apps/renderer build
+      - name: Build Main
+        run: pnpm --filter apps/main build

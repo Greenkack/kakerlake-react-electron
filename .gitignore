@@ -1,0 +1,29 @@
+# Node / React / Electron
+node_modules/
+dist/
+out/
+build/
+*.log
+*.cache
+.pnpm-store/
+pnpm-lock.yaml
+
+# Python-Referenz
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# App-Artefakte
+/.idea/
+/.vscode/
+.DS_Store
+*.zip
+
+# PDF/Charts/Temp
+pdf_output/
+charts_output/
+assets/tmp/
+
+# Streamlit (falls noch parallel genutzt)
+.streamlit/
