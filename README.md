@@ -1361,3 +1361,4 @@ Die Anwendung ist bereit für den produktiven Einsatz und bietet eine solide Gru
 ---
 
 *Diese Dokumentation wird kontinuierlich aktualisiert und erweitert. Für die neueste Version besuchen Sie bitte das GitHub-Repository.*
+# kakerlake-react-electron
