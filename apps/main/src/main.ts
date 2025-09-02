@@ -1,0 +1,1 @@
+import {app,BrowserWindow} from 'electron';async function create(){const w=new BrowserWindow({width:1200,height:800});await w.loadURL('http://localhost:5173');}app.whenReady().then(create);
