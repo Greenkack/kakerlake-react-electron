@@ -1,8 +1,8 @@
 {
   "name": "kakerlake-react-electron",
-  "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@9.0.0",
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.15.1",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -10,7 +10,11 @@
   "scripts": {
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
-    "renderer:build": "pnpm -C apps/renderer build",
-    "electron:publish": "pnpm -C apps/main publish"
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "core:test": "pnpm -C packages/core build && node packages/core/dist/test_compute.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
   }
 }

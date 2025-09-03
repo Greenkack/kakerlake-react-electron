@@ -1,8 +1,4 @@
-# Python/Streamlit Cache
-__pycache__/
-.streamlit/
-
-# Build/Node
+# Node / React / Electron
 node_modules/
 dist/
 out/
@@ -10,7 +6,13 @@ build/
 *.log
 *.cache
 .pnpm-store/
-pnpm-lock.yaml
+
+# Python/Streamlit Cache
+__pycache__/
+*.pyc
+.venv/
+.env
+.streamlit/
 
 # Tools/Artefakte
 tools/*.zip
@@ -20,3 +22,8 @@ tools/*.zip
 /.idea/
 /.vscode/
 .DS_Store
+
+# PDF/Charts/Temp
+pdf_output/
+charts_output/
+assets/tmp/

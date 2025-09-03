@@ -1,23 +1,20 @@
 {
   "name": "main",
   "private": true,
-  "type": "module",
+  "version": "0.1.0",
+  "type": "commonjs",
   "main": "dist/main.cjs",
   "scripts": {
-    "build": "tsup src/main.ts --format cjs --sourcemap --out-dir dist",
-    "watch": "tsup src/main.ts --format cjs --sourcemap --out-dir dist --watch",
-    "dev": "concurrently -k \"pnpm:watch\" \"pnpm:dev:electron\"",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "publish": "electron-builder"
-  },
-  "dependencies": {
-    "electron": "^31.3.1",
-    "wait-on": "^7.2.0"
+  "dev": "concurrently -k \"pnpm:watch\" \"pnpm:dev:electron\"",
+  "watch": "tsup src/main.ts --format cjs --sourcemap --out-dir dist --watch",
+  "build": "tsup src/main.ts --format cjs --sourcemap --out-dir dist",
+  "dev:electron": "wait-on http://localhost:5173 && \"..\\..\\node_modules\\.pnpm\\electron@31.7.7\\node_modules\\electron\\dist\\electron.exe\" ."
   },
   "devDependencies": {
-    "concurrently": "^9.0.1",
-    "electron-builder": "^24.13.3",
-    "tsup": "^8.2.4",
-    "typescript": "^5.6.2"
+    "concurrently": "^8.2.2",
+    "electron": "31.7.7",
+    "tsup": "^8.5.0",
+    "typescript": "^5.5.4",
+    "wait-on": "^7.2.0"
   }
 }
