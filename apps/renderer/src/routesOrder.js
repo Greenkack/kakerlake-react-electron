@@ -38,5 +38,7 @@ export function menuRouteFor(path) {
         return "/planning/menu";
     if (path.startsWith("/admin"))
         return "/admin/login";
-    return "/";
+    if (path.startsWith("/project"))
+        return "/home";
+    return "/home";
 }

@@ -29,7 +29,7 @@ export default function FooterNav(): JSX.Element {
           className="px-3 py-2 rounded border"
           onClick={() => nav(menu)}
         >
-          Menü
+          {path.startsWith('/project') ? '🏠 Startseite' : 'Menü'}
         </button>
 
         <button
@@ -44,7 +44,7 @@ export default function FooterNav(): JSX.Element {
         <button
           type="button"
           className="px-3 py-2 rounded border"
-          onClick={() => nav("/")}
+          onClick={() => nav("/home")}
         >
           zurück zum Hauptmenü
         </button>
