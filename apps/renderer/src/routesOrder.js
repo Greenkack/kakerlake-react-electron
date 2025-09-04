@@ -2,19 +2,29 @@
 // Zentrale, lineare Reihenfolge für "vorherige"/"nächste"
 export const ROUTE_ORDER = [
     "/", // Hauptmenü / Mainscreen
-    "/calc/menu", // Untermenü Berechnungen
-    "/calc/customer", // 1. Kundendaten
-    "/calc/needs", // 2. Bedarfsanalyse
-    "/calc/building", // 3. Gebäudedaten
-    "/calc/options", // 4. Zusätzliche Angaben
-    "/calc/solar", // Solar Calculator
-    "/calc/heatpump", // Wärmepumpe Simulator
-    "/results", // Ergebnisse der Analyse
+    "/home", // Hauptmenü / Mainscreen
+    "/project/mode", // 1. Anlagenmodus wählen
+    "/project/customer", // 2. Kundendaten
+    "/project/building", // 3. Gebäudedaten  
+    "/project/demand", // 4. Bedarfsanalyse
+    "/project/needs", // 5. Zusätzliche Angaben (alt)
+    "/project/options", // 6. Zusätzliche Optionen
+    "/project/results", // 7. Ergebnisse
+    "/calc/menu", // Untermenü Berechnungen (alt)
+    "/calc/customer", // 1. Kundendaten (alt)
+    "/calc/needs", // 2. Bedarfsanalyse (alt)
+    "/calc/building", // 3. Gebäudedaten (alt)
+    "/calc/options", // 4. Zusätzliche Angaben (alt)
+    "/calc/solar", // Solar Calculator (alt)
+    "/calc/heatpump", // Wärmepumpe Simulator (alt)
+    "/results", // Ergebnisse der Analyse (alt)
+    "/solar", // Solar Calculator
+    "/heatpump", // Wärmepumpe Simulator
     "/dashboard", // Dashboard
     "/documents", // Dokumentenerstellung
-    "/crm/menu", // CRM Hauptmenü (Platzhalter)
+    "/crm", // CRM Hauptmenü
     "/planning/menu", // Planungen (Platzhalter)
-    "/admin/login", // Admin Login (Platzhalter)
+    "/admin", // Admin Login
 ];
 export function indexOfRoute(path) {
     const idx = ROUTE_ORDER.indexOf(path);
@@ -33,11 +43,11 @@ export function menuRouteFor(path) {
     if (path.startsWith("/calc"))
         return "/calc/menu";
     if (path.startsWith("/crm"))
-        return "/crm/menu";
+        return "/crm";
     if (path.startsWith("/planning"))
         return "/planning/menu";
     if (path.startsWith("/admin"))
-        return "/admin/login";
+        return "/admin";
     if (path.startsWith("/project"))
         return "/home";
     return "/home";

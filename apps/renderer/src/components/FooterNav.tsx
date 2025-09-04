@@ -12,13 +12,19 @@ export default function FooterNav(): JSX.Element {
   const next = nextRoute(path);
   const menu = menuRouteFor(path);
 
+  // Debug logging
+  console.log('FooterNav Debug:', { path, prev, next, menu });
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white/95 border-t shadow-sm">
       <div className="mx-auto max-w-6xl px-4 py-2 grid grid-cols-4 gap-2">
         <button
           type="button"
           className="px-3 py-2 rounded border disabled:opacity-40"
-          onClick={() => prev && nav(prev)}
+          onClick={() => {
+            console.log('Previous clicked:', prev);
+            if (prev) nav(prev);
+          }}
           disabled={!prev}
         >
           ← vorherige Seite
@@ -27,7 +33,10 @@ export default function FooterNav(): JSX.Element {
         <button
           type="button"
           className="px-3 py-2 rounded border"
-          onClick={() => nav(menu)}
+          onClick={() => {
+            console.log('Menu clicked:', menu);
+            nav(menu);
+          }}
         >
           {path.startsWith('/project') ? '🏠 Startseite' : 'Menü'}
         </button>
@@ -35,7 +44,10 @@ export default function FooterNav(): JSX.Element {
         <button
           type="button"
           className="px-3 py-2 rounded border disabled:opacity-40"
-          onClick={() => next && nav(next)}
+          onClick={() => {
+            console.log('Next clicked:', next);
+            if (next) nav(next);
+          }}
           disabled={!next}
         >
           nächste Seite →
@@ -44,7 +56,10 @@ export default function FooterNav(): JSX.Element {
         <button
           type="button"
           className="px-3 py-2 rounded border"
-          onClick={() => nav("/home")}
+          onClick={() => {
+            console.log('Home clicked: /home');
+            nav("/home");
+          }}
         >
           zurück zum Hauptmenü
         </button>
