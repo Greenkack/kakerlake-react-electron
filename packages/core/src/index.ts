@@ -33,10 +33,27 @@ export type Tariffs = {
   feedInEuroPerKWh: number;
 };
 
+export type PVFlowOptionalOverrides = {
+  /**
+   * Optionaler Override für Jahresproduktion (kWh).
+   * Wenn nicht gesetzt, wird 0 angesetzt (keine Heuristik hier im Core).
+   * Die realistische Produktionsberechnung (PVGIS etc.) kann später als
+   * eigene Funktion ergänzt und hier reingereicht werden.
+   */
+  annualProductionOverrideKWh?: number;
+
+  /**
+   * Optionaler Override, wie viel davon direkt im Haushalt verbraucht wird (kWh).
+   * Wenn nicht gesetzt, wird min(Produktion, Verbrauch) benutzt.
+   */
+  directUseOverrideKWh?: number;
+};
+
 export type PVFlowInput = {
   basics: ProjectBasics;
   setup: PVSetup;
   tariffs: Tariffs;
+} & PVFlowOptionalOverrides;
 
 // ---------- Preis-Matrix (INDEX/VERGLEICH) ----------
 
@@ -84,21 +101,7 @@ export function lookupPriceFromMatrix(
   const priceCell = row[col];
   const price = typeof priceCell === 'string' ? Number(priceCell.replace(/[^\d.,-]/g, '').replace(',', '.')) : Number(priceCell);
   return Number.isFinite(price) ? price : null;
-
-  /**
-   * Optionaler Override für Jahresproduktion (kWh).
-   * Wenn nicht gesetzt, wird 0 angesetzt (keine Heuristik hier im Core).
-   * Die realistische Produktionsberechnung (PVGIS etc.) kann später als
-   * eigene Funktion ergänzt und hier reingereicht werden.
-   */
-  annualProductionOverrideKWh?: number;
-
-  /**
-   * Optionaler Override, wie viel davon direkt im Haushalt verbraucht wird (kWh).
-   * Wenn nicht gesetzt, wird min(Produktion, Verbrauch) benutzt.
-   */
-  directUseOverrideKWh?: number;
-};
+}
 
 export type PVFlowResult = {
   // Größen

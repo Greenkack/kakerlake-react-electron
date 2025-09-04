@@ -1,103 +1,91 @@
-// apps/renderer/src/routes/Project/CustomerForm.tsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useWizard } from "../../state/wizard";
+import React from "react";
+import { useProject } from "../../state/project";
+import WizardNav from "../../components/WizardNav";
+import { parseFullAddress } from "../../utils/address";
 
 export default function CustomerForm(): JSX.Element {
-  const nav = useNavigate();
-  const { markCustomerDone } = useWizard();
+  const { state, actions } = useProject();
+  const c = state.customer;
 
-  const [form, setForm] = useState({
-    anlagentyp: "Neuanlage",
-    einspeisetyp: "Teileinspeisung",
-    kundentyp: "Privat",
-    anrede: "Herr",
-    titel: "",
-    vorname: "",
-    nachname: "",
-    adresseRaw: "",
-    strasse: "",
-    hausnr: "",
-    plz: "",
-    ort: "",
-    email: "",
-    telFest: "",
-    telMobil: "",
-    bundesland: "",
-    anmerkung: "",
-  });
+  const onRawParse = () => {
+    const parsed = parseFullAddress(c.adresseRaw);
+    actions.applyParsedAddress(parsed);
+  };
+
+  const requiredOk =
+    c.vorname.trim().length > 0 &&
+    c.nachname.trim().length > 0 &&
+    c.plz.trim().length > 0 &&
+    c.ort.trim().length > 0;
 
   return (
-    <form
-      className="grid gap-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        markCustomerDone();
-        nav("/calc/needs");
-      }}
-    >
-      <h2 className="text-xl font-semibold">1) Kundendaten</h2>
+    <div className="space-y-6">
+      <h1 className="text-xl font-semibold">Kundendaten</h1>
 
-      <div className="grid md:grid-cols-3 gap-3">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Anlagentyp */}
         <label className="block">
-          <span className="block text-sm mb-1">Anlagentyp</span>
+          <span className="mb-1 block text-sm">Anlagentyp</span>
           <select
-            className="border p-2 w-full"
-            value={form.anlagentyp}
-            onChange={(e) => setForm({ ...form, anlagentyp: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            value={c.anlagentyp}
+            onChange={(e) => actions.updateCustomer({ anlagentyp: e.target.value as any })}
           >
             <option>Neuanlage</option>
             <option>Bestandsanlage</option>
           </select>
         </label>
 
+        {/* Einspeisetyp */}
         <label className="block">
-          <span className="block text-sm mb-1">Einspeisetyp</span>
+          <span className="mb-1 block text-sm">Einspeisetyp</span>
           <select
-            className="border p-2 w-full"
-            value={form.einspeisetyp}
-            onChange={(e) => setForm({ ...form, einspeisetyp: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            value={c.einspeisetyp}
+            onChange={(e) => actions.updateCustomer({ einspeisetyp: e.target.value as any })}
           >
             <option>Teileinspeisung</option>
             <option>Volleinspeisung</option>
           </select>
         </label>
 
+        {/* Kundentyp */}
         <label className="block">
-          <span className="block text-sm mb-1">Kundentyp</span>
+          <span className="mb-1 block text-sm">Kundentyp</span>
           <select
-            className="border p-2 w-full"
-            value={form.kundentyp}
-            onChange={(e) => setForm({ ...form, kundentyp: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            value={c.kundentyp}
+            onChange={(e) => actions.updateCustomer({ kundentyp: e.target.value as any })}
           >
             <option>Privat</option>
             <option>Gewerblich</option>
           </select>
         </label>
-      </div>
 
-      <div className="grid md:grid-cols-4 gap-3">
+        {/* Anrede */}
         <label className="block">
-          <span className="block text-sm mb-1">Anrede</span>
+          <span className="mb-1 block text-sm">Anrede</span>
           <select
-            className="border p-2 w-full"
-            value={form.anrede}
-            onChange={(e) => setForm({ ...form, anrede: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            value={c.anrede}
+            onChange={(e) => actions.updateCustomer({ anrede: e.target.value as any })}
           >
+            <option value="">(keine)</option>
             <option>Herr</option>
             <option>Frau</option>
             <option>Familie</option>
           </select>
         </label>
 
+        {/* Titel */}
         <label className="block">
-          <span className="block text-sm mb-1">Titel</span>
+          <span className="mb-1 block text-sm">Titel</span>
           <select
-            className="border p-2 w-full"
-            value={form.titel}
-            onChange={(e) => setForm({ ...form, titel: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            value={c.titel}
+            onChange={(e) => actions.updateCustomer({ titel: e.target.value as any })}
           >
-            <option value="">–</option>
+            <option value="">(kein Titel)</option>
             <option>Dr.</option>
             <option>Prof.</option>
             <option>Mag.</option>
@@ -105,136 +93,160 @@ export default function CustomerForm(): JSX.Element {
           </select>
         </label>
 
+        {/* Vorname / Nachname */}
         <label className="block">
-          <span className="block text-sm mb-1">Vorname</span>
+          <span className="mb-1 block text-sm">Vorname</span>
           <input
-            className="border p-2 w-full"
-            value={form.vorname}
-            onChange={(e) => setForm({ ...form, vorname: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            type="text"
+            value={c.vorname}
+            onChange={(e) => actions.updateCustomer({ vorname: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm">Nachname</span>
+          <input
+            className="w-full rounded border px-3 py-2"
+            type="text"
+            value={c.nachname}
+            onChange={(e) => actions.updateCustomer({ nachname: e.target.value })}
           />
         </label>
 
-        <label className="block">
-          <span className="block text-sm mb-1">Nachname</span>
-          <input
-            className="border p-2 w-full"
-            value={form.nachname}
-            onChange={(e) => setForm({ ...form, nachname: e.target.value })}
-          />
+        {/* Adresse (frei) */}
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-sm">
+            Komplette Adresse (aus Google Maps einfügen)
+          </span>
+          <textarea
+            className="w-full rounded border px-3 py-2"
+            rows={3}
+            placeholder="Adresse aus Google Maps hier einfügen..."
+            value={c.adresseRaw}
+            onChange={(e) => actions.updateCustomer({ adresseRaw: e.target.value })}
+          ></textarea>
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={onRawParse}
+              className="rounded border bg-white px-3 py-1 text-sm hover:bg-slate-50"
+            >
+              Daten aus Adresse übernehmen
+            </button>
+          </div>
         </label>
-      </div>
 
-      <label className="block">
-        <span className="block text-sm mb-1">
-          Komplette Adresse (aus Google Maps einfügen)
-        </span>
-        <textarea
-          className="border p-2 w-full"
-          rows={3}
-          value={form.adresseRaw}
-          onChange={(e) => setForm({ ...form, adresseRaw: e.target.value })}
-          placeholder="Straße Hausnummer, PLZ Ort"
-        />
-      </label>
+        {/* Straße / Hausnummer / PLZ / Ort */}
+        <label className="block">
+          <span className="mb-1 block text-sm">Straße</span>
+          <input
+            className="w-full rounded border px-3 py-2"
+            type="text"
+            value={c.strasse}
+            onChange={(e) => actions.updateCustomer({ strasse: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm">Hausnummer</span>
+          <input
+            className="w-full rounded border px-3 py-2"
+            type="text"
+            value={c.hausnummer}
+            onChange={(e) => actions.updateCustomer({ hausnummer: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm">PLZ</span>
+          <input
+            className="w-full rounded border px-3 py-2"
+            type="text"
+            value={c.plz}
+            onChange={(e) => actions.updateCustomer({ plz: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm">Ort</span>
+          <input
+            className="w-full rounded border px-3 py-2"
+            type="text"
+            value={c.ort}
+            onChange={(e) => actions.updateCustomer({ ort: e.target.value })}
+          />
+        </label>
 
-      <div className="grid md:grid-cols-4 gap-3">
+        {/* E-Mail / Telefon */}
         <label className="block">
-          <span className="block text-sm mb-1">Straße</span>
+          <span className="mb-1 block text-sm">E-Mail</span>
           <input
-            className="border p-2 w-full"
-            value={form.strasse}
-            onChange={(e) => setForm({ ...form, strasse: e.target.value })}
-          />
-        </label>
-        <label className="block">
-          <span className="block text-sm mb-1">Hausnummer</span>
-          <input
-            className="border p-2 w-full"
-            value={form.hausnr}
-            onChange={(e) => setForm({ ...form, hausnr: e.target.value })}
-          />
-        </label>
-        <label className="block">
-          <span className="block text-sm mb-1">PLZ</span>
-          <input
-            className="border p-2 w-full"
-            value={form.plz}
-            onChange={(e) => setForm({ ...form, plz: e.target.value })}
-          />
-        </label>
-        <label className="block">
-          <span className="block text-sm mb-1">Ort</span>
-          <input
-            className="border p-2 w-full"
-            value={form.ort}
-            onChange={(e) => setForm({ ...form, ort: e.target.value })}
-          />
-        </label>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-3">
-        <label className="block">
-          <span className="block text-sm mb-1">E-Mail</span>
-          <input
-            className="border p-2 w-full"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            className="w-full rounded border px-3 py-2"
             type="email"
+            value={c.email}
+            onChange={(e) => actions.updateCustomer({ email: e.target.value })}
           />
         </label>
         <label className="block">
-          <span className="block text-sm mb-1">Telefon (Festnetz)</span>
+          <span className="mb-1 block text-sm">Telefon (Festnetz)</span>
           <input
-            className="border p-2 w-full"
-            value={form.telFest}
-            onChange={(e) => setForm({ ...form, telFest: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            type="tel"
+            value={c.telFest}
+            onChange={(e) => actions.updateCustomer({ telFest: e.target.value })}
           />
         </label>
         <label className="block">
-          <span className="block text-sm mb-1">Telefon (Mobil)</span>
+          <span className="mb-1 block text-sm">Telefon (Mobil)</span>
           <input
-            className="border p-2 w-full"
-            value={form.telMobil}
-            onChange={(e) => setForm({ ...form, telMobil: e.target.value })}
+            className="w-full rounded border px-3 py-2"
+            type="tel"
+            value={c.telMobil}
+            onChange={(e) => actions.updateCustomer({ telMobil: e.target.value })}
           />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm">Bundesland</span>
+          <select
+            className="w-full rounded border px-3 py-2"
+            value={c.bundesland}
+            onChange={(e) => actions.updateCustomer({ bundesland: e.target.value })}
+          >
+            <option value="">--- Bitte wählen ---</option>
+            <option>Baden-Württemberg</option>
+            <option>Bayern</option>
+            <option>Berlin</option>
+            <option>Brandenburg</option>
+            <option>Bremen</option>
+            <option>Hamburg</option>
+            <option>Hessen</option>
+            <option>Mecklenburg-Vorpommern</option>
+            <option>Niedersachsen</option>
+            <option>Nordrhein-Westfalen</option>
+            <option>Rheinland-Pfalz</option>
+            <option>Saarland</option>
+            <option>Sachsen</option>
+            <option>Sachsen-Anhalt</option>
+            <option>Schleswig-Holstein</option>
+            <option>Thüringen</option>
+          </select>
+        </label>
+
+        {/* Anmerkung */}
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-sm">Anmerkung zum Kunden</span>
+          <textarea
+            className="w-full rounded border px-3 py-2"
+            rows={3}
+            value={c.anmerkung}
+            onChange={(e) => actions.updateCustomer({ anmerkung: e.target.value })}
+          ></textarea>
         </label>
       </div>
 
-      <label className="block">
-        <span className="block text-sm mb-1">Bundesland</span>
-        <input
-          className="border p-2 w-full"
-          value={form.bundesland}
-          onChange={(e) => setForm({ ...form, bundesland: e.target.value })}
-          placeholder="— Bitte wählen —"
-        />
-      </label>
-
-      <label className="block">
-        <span className="block text-sm mb-1">Anmerkung zum Kunden</span>
-        <textarea
-          className="border p-2 w-full"
-          rows={2}
-          value={form.anmerkung}
-          onChange={(e) => setForm({ ...form, anmerkung: e.target.value })}
-        />
-      </label>
-
-      <div className="flex items-center gap-3">
-        <button
-          className="px-4 py-2 rounded bg-black text-white"
-          type="submit"
-        >
-          Nächster Bereich
-        </button>
-        <button
-          className="px-4 py-2 rounded border"
-          type="button"
-          onClick={() => nav("/calc/menu")}
-        >
-          Abbrechen / Zurück zum Untermenü
-        </button>
-      </div>
-    </form>
+      <WizardNav
+        backTo="/project/mode"
+        nextTo="/results"
+        nextDisabled={!requiredOk}
+        showHome={true}
+      />
+    </div>
   );
 }

@@ -1,15 +1,5 @@
-// apps/renderer/src/routes/SolarCalculator.tsx
 import React, { useMemo, useState } from "react";
-
-/**
- * Minimaler Solar-Rechner-Screen:
- * - Eingaben: Anzahl Module, Leistung pro Modul (Wp)
- * - Ergebnis: kWp (Module * Wp / 1000)
- * 
- * Hinweis:
- * Später kannst du hier weitere Felder (WR, Speicher etc.) ergänzen
- * und/oder die Werte aus deinem globalen Project-Context beziehen.
- */
+import { Link } from "react-router-dom";
 
 export default function SolarCalculator(): JSX.Element {
   const [modules, setModules] = useState<number>(20);
@@ -18,7 +8,7 @@ export default function SolarCalculator(): JSX.Element {
   const kWp = useMemo(() => {
     const m = Number.isFinite(modules) ? modules : 0;
     const w = Number.isFinite(moduleWp) ? moduleWp : 0;
-    return (m * w) / 1000; // z.B. 20 * 440 / 1000 = 8.8 kWp
+    return (m * w) / 1000;
   }, [modules, moduleWp]);
 
   return (
@@ -26,8 +16,7 @@ export default function SolarCalculator(): JSX.Element {
       <header className="rounded-xl bg-white p-4 shadow">
         <h1 className="text-2xl font-semibold">Solarkalkulator</h1>
         <p className="text-gray-600">
-          Demo-Eingaben für kWp-Berechnung. Diese Ansicht bleibt bewusst schlank,
-          damit wir zuerst die Navigation und Fehlerfreiheit sicherstellen.
+          Demo-Eingaben für kWp-Berechnung. Später kommen WR, Speicher usw. dazu.
         </p>
       </header>
 
@@ -63,6 +52,15 @@ export default function SolarCalculator(): JSX.Element {
           </div>
         </div>
       </section>
+
+      <div className="text-center">
+        <Link 
+          to="/home" 
+          className="inline-block bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          ← Zurück zur Startseite
+        </Link>
+      </div>
     </div>
   );
 }

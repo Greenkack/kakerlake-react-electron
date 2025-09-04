@@ -1,25 +1,55 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import WizardNav from "../../components/WizardNav";
+import { useProject, type Mode } from "../../state/project";
 
 export default function ModeSelect(): JSX.Element {
   const nav = useNavigate();
-  const modi = ["Photovoltaik", "Wärmepumpe", "Photovoltaik und Wärmepumpe"];
+  const { state, actions } = useProject();
+  const [mode, setMode] = useState<Mode | null>(state.mode);
+
+  const choose = (m: Mode) => {
+    setMode(m);
+    actions.setMode(m);
+  };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Anlagenmodus</h1>
-      <div className="flex flex-wrap gap-2">
-        {modi.map((m) => (
-          <button
-            key={m}
-            className="px-3 py-2 rounded border"
-            onClick={() => nav("/project/customer")}
-            type="button"
-          >
-            {m}
-          </button>
-        ))}
+    <div className="space-y-6">
+      <h1 className="text-xl font-semibold">Projekt – Bedarfsanalyse: Anlagenmodus</h1>
+      <p className="text-slate-600">Bitte wählen Sie einen Bedarfsanalyse-Modus aus.</p>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <button
+          className={"rounded border bg-white p-4 text-left hover:bg-slate-50 " + (mode === "pv" ? "ring-2 ring-cyan-500" : "")}
+          onClick={() => choose("pv")}
+        >
+          <div className="font-medium">Photovoltaik</div>
+          <div className="text-sm text-slate-600">Nur PV-Angebot</div>
+        </button>
+
+        <button
+          className={"rounded border bg-white p-4 text-left hover:bg-slate-50 " + (mode === "hp" ? "ring-2 ring-cyan-500" : "")}
+          onClick={() => choose("hp")}
+        >
+          <div className="font-medium">Wärmepumpe</div>
+          <div className="text-sm text-slate-600">Nur WP-Angebot</div>
+        </button>
+
+        <button
+          className={"rounded border bg-white p-4 text-left hover:bg-slate-50 " + (mode === "both" ? "ring-2 ring-cyan-500" : "")}
+          onClick={() => choose("both")}
+        >
+          <div className="font-medium">Photovoltaik & Wärmepumpe</div>
+          <div className="text-sm text-slate-600">Kombiniertes Angebot</div>
+        </button>
       </div>
+
+      <WizardNav
+        backTo={undefined}
+        nextTo="/project/customer"
+        nextDisabled={!mode}
+        showHome={false}
+      />
     </div>
   );
 }

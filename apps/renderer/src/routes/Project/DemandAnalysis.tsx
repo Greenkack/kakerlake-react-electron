@@ -1,253 +1,472 @@
-/* DEF: Projekt → Bedarfsanalyse (Verbrauch & Gebäude) – dynamische Ableitungen, Validierung, Navigation */
-import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useProject } from '../../lib/projectContext'
-import { ROOF_COVER, ROOF_ORIENT, ROOF_TYPES, STATES_DE } from '../../lib/constants'
-import { annualCostFromMonthly, pricePerKWh, sumNullable, toNumberOrNull } from '../../lib/compute'
+import React, { useState, useEffect } from 'react'
+import WizardNav from '../../components/WizardNav'
 
-function Field({label, children}:{label:string, children:React.ReactNode}) {
-  return (
-    <label className="block">
-      <div className="mb-1 text-xs font-medium text-slate-600">{label}</div>
-      {children}
-    </label>
-  )
+// Mock useProjectData hook until context is available
+const useProjectData = () => ({
+  projectData: { 
+    consumption: {
+      annualKWhHousehold: undefined as number | undefined,
+      monthlyCostHouseholdEuro: undefined as number | undefined,
+      annualKWhHeating: undefined as number | undefined,
+      monthlyCostHeatingEuro: undefined as number | undefined,
+      currentHeatingType: undefined as string | undefined,
+      heatingAge: undefined as number | undefined,
+      fuelType: undefined as string | undefined,
+      householdSize: undefined as number | undefined,
+      homeOfficeHours: undefined as number | undefined,
+      electricAppliances: undefined as string | undefined,
+      zukunft_epump: undefined as boolean | undefined,
+      zukunft_wallbox: undefined as boolean | undefined,
+      zukunft_pool: undefined as boolean | undefined,
+      zukunft_sauna: undefined as boolean | undefined,
+      zukunft_klima: undefined as boolean | undefined,
+      zukunft_erweiterung: undefined as boolean | undefined,
+      epump_verbrauch_schaetzung: undefined as number | undefined,
+      wallbox_verbrauch_schaetzung: undefined as number | undefined,
+      pool_verbrauch_schaetzung: undefined as number | undefined,
+      eigenverbrauch_maximieren: undefined as boolean | undefined,
+      netzeinspeisung_begrenzen: undefined as boolean | undefined,
+      backup_wichtig: undefined as boolean | undefined,
+      umwelt_prioritaet: undefined as boolean | undefined
+    }
+  },
+  updateProjectData: (data: any) => console.log('Update project data:', data)
+})
+
+const toNumberOrNull = (value: string): number | null => {
+  const num = parseFloat(value)
+  return isNaN(num) ? null : num
 }
 
 export default function DemandAnalysis() {
-  const nav = useNavigate()
-  const { state, setConsumption, setBuilding } = useProject()
+  const { projectData, updateProjectData } = useProjectData()
 
-  // Lokale Eingaben mit initialen Werten aus Context
-  const [annualKWhHousehold, setAnnualKWhHousehold] = useState<string>(state.consumption.annualKWhHousehold?.toString() ?? '')
-  const [monthlyCostHouseholdEuro, setMonthlyCostHouseholdEuro] = useState<string>(state.consumption.monthlyCostHouseholdEuro?.toString() ?? '')
-  const [annualKWhHeating, setAnnualKWhHeating] = useState<string>(state.consumption.annualKWhHeating?.toString() ?? '')
-  const [monthlyCostHeatingEuro, setMonthlyCostHeatingEuro] = useState<string>(state.consumption.monthlyCostHeatingEuro?.toString() ?? '')
+  // Energieverbrauch - Haushalt
+  const [annualKWhHousehold, setAnnualKWhHousehold] = useState<string>(
+    projectData.consumption?.annualKWhHousehold?.toString() || ''
+  )
+  const [monthlyCostHouseholdEuro, setMonthlyCostHouseholdEuro] = useState<string>(
+    projectData.consumption?.monthlyCostHouseholdEuro?.toString() || ''
+  )
 
-  const [buildYear, setBuildYear] = useState<string>(state.building.buildYear ?? '')
-  const [roofCover, setRoofCover] = useState<string>(state.building.roofCover ?? '')
-  const [roofOrientation, setRoofOrientation] = useState<string>(state.building.roofOrientation ?? '')
-  const [roofType, setRoofType] = useState<string>(state.building.roofType ?? '')
-  const [freeAreaM2, setFreeAreaM2] = useState<string>(state.building.freeAreaM2?.toString() ?? '')
-  const [tiltDeg, setTiltDeg] = useState<string>(state.building.tiltDeg?.toString() ?? '')
-  const [heightOver7m, setHeightOver7m] = useState<boolean>(state.building.heightOver7m ?? false)
-  const [financingWanted, setFinancingWanted] = useState<boolean>(state.building.financingWanted ?? false)
+  // Energieverbrauch - Heizung
+  const [annualKWhHeating, setAnnualKWhHeating] = useState<string>(
+    projectData.consumption?.annualKWhHeating?.toString() || ''
+  )
+  const [monthlyCostHeatingEuro, setMonthlyCostHeatingEuro] = useState<string>(
+    projectData.consumption?.monthlyCostHeatingEuro?.toString() || ''
+  )
 
-  // Ableitungen
-  const derived = useMemo(() => {
-    const annKWhHH = toNumberOrNull(annualKWhHousehold)
-    const monCostHH = toNumberOrNull(monthlyCostHouseholdEuro)
-    const annKWhHeat = toNumberOrNull(annualKWhHeating)
-    const monCostHeat = toNumberOrNull(monthlyCostHeatingEuro)
+  // Heizungsdetails
+  const [currentHeatingType, setCurrentHeatingType] = useState<string>(
+    projectData.consumption?.currentHeatingType || ''
+  )
+  const [heatingAge, setHeatingAge] = useState<string>(
+    projectData.consumption?.heatingAge?.toString() || ''
+  )
+  const [fuelType, setFuelType] = useState<string>(
+    projectData.consumption?.fuelType || ''
+  )
 
-    const annCostHH = annualCostFromMonthly(monCostHH)
-    const annCostHeat = annualCostFromMonthly(monCostHeat)
+  // Haushaltsdaten
+  const [householdSize, setHouseholdSize] = useState<string>(
+    projectData.consumption?.householdSize?.toString() || ''
+  )
+  const [homeOfficeHours, setHomeOfficeHours] = useState<string>(
+    projectData.consumption?.homeOfficeHours?.toString() || ''
+  )
+  const [electricAppliances, setElectricAppliances] = useState<string>(
+    projectData.consumption?.electricAppliances || ''
+  )
 
-    const annualCostTotal = sumNullable(annCostHH, annCostHeat)
-    const annualKWhTotal = sumNullable(annKWhHH, annKWhHeat)
-    const euroPerKWh = pricePerKWh(annualCostTotal, annualKWhTotal)
+  // Zukunftsplanung
+  const [zukunft_epump, setZukunftEpump] = useState<boolean>(
+    projectData.consumption?.zukunft_epump || false
+  )
+  const [zukunft_wallbox, setZukunftWallbox] = useState<boolean>(
+    projectData.consumption?.zukunft_wallbox || false
+  )
+  const [zukunft_pool, setZukunftPool] = useState<boolean>(
+    projectData.consumption?.zukunft_pool || false
+  )
+  const [zukunft_sauna, setZukunftSauna] = useState<boolean>(
+    projectData.consumption?.zukunft_sauna || false
+  )
+  const [zukunft_klima, setZukunftKlima] = useState<boolean>(
+    projectData.consumption?.zukunft_klima || false
+  )
+  const [zukunft_erweiterung, setZukunftErweiterung] = useState<boolean>(
+    projectData.consumption?.zukunft_erweiterung || false
+  )
 
-    return {
-      annCostHH, annCostHeat, annualCostTotal, annualKWhTotal, euroPerKWh
-    }
+  // Verbrauchsschätzungen für Zukunftsplanung
+  const [epump_verbrauch_schaetzung, setEpumpVerbrauch] = useState<string>(
+    projectData.consumption?.epump_verbrauch_schaetzung?.toString() || ''
+  )
+  const [wallbox_verbrauch_schaetzung, setWallboxVerbrauch] = useState<string>(
+    projectData.consumption?.wallbox_verbrauch_schaetzung?.toString() || ''
+  )
+  const [pool_verbrauch_schaetzung, setPoolVerbrauch] = useState<string>(
+    projectData.consumption?.pool_verbrauch_schaetzung?.toString() || ''
+  )
+
+  // Prioritäten
+  const [eigenverbrauch_maximieren, setEigenverbrauch] = useState<boolean>(
+    projectData.consumption?.eigenverbrauch_maximieren || false
+  )
+  const [netzeinspeisung_begrenzen, setNetzeinspeisung] = useState<boolean>(
+    projectData.consumption?.netzeinspeisung_begrenzen || false
+  )
+  const [backup_wichtig, setBackupWichtig] = useState<boolean>(
+    projectData.consumption?.backup_wichtig || false
+  )
+  const [umwelt_prioritaet, setUmweltPrioritaet] = useState<boolean>(
+    projectData.consumption?.umwelt_prioritaet || false
+  )
+
+  // Berechnete Werte anzeigen
+  const [annCostHH, setAnnCostHH] = useState<number>(0)
+  const [annCostHeat, setAnnCostHeat] = useState<number>(0)
+  const [annualCostTotal, setAnnualCostTotal] = useState<number>(0)
+  const [annualKWhTotal, setAnnualKWhTotal] = useState<number>(0)
+  const [euroPerKWh, setEuroPerKWh] = useState<number>(0)
+
+  // Validierung für "Weiter"-Button
+  const requiredOk = annualKWhHousehold !== '' && monthlyCostHouseholdEuro !== ''
+
+  // Live-Berechnung der Gesamtkosten und kWh
+  useEffect(() => {
+    const monthlyCostHH = toNumberOrNull(monthlyCostHouseholdEuro) || 0
+    const annCostHH = monthlyCostHH * 12
+    
+    const monthlyCostHeat = toNumberOrNull(monthlyCostHeatingEuro) || 0
+    const annCostHeat = monthlyCostHeat * 12
+
+    const annualCostTotal = annCostHH + annCostHeat
+    const annualKWhTotal = (toNumberOrNull(annualKWhHousehold) || 0) + (toNumberOrNull(annualKWhHeating) || 0)
+    const euroPerKWh = annualKWhTotal > 0 ? annualCostTotal / annualKWhTotal : 0
+
+    setAnnCostHH(annCostHH)
+    setAnnCostHeat(annCostHeat)
+    setAnnualCostTotal(annualCostTotal)
+    setAnnualKWhTotal(annualKWhTotal)
+    setEuroPerKWh(euroPerKWh)
   }, [annualKWhHousehold, monthlyCostHouseholdEuro, annualKWhHeating, monthlyCostHeatingEuro])
 
   // Beim Verlassen/Weiter speichern wir in den Context
-  function persistToContext() {
-    setConsumption({
-      annualKWhHousehold: toNumberOrNull(annualKWhHousehold),
-      monthlyCostHouseholdEuro: toNumberOrNull(monthlyCostHouseholdEuro),
-      annualKWhHeating: toNumberOrNull(annualKWhHeating),
-      monthlyCostHeatingEuro: toNumberOrNull(monthlyCostHeatingEuro),
-      annualCostTotalEuro: derived.annualCostTotal,
-      annualKWhTotal: derived.annualKWhTotal,
-      pricePerKWhEuro: derived.euroPerKWh,
-    })
-    setBuilding({
-      buildYear,
-      roofCover: roofCover || null,
-      roofOrientation: roofOrientation || null,
-      roofType: roofType || null,
-      freeAreaM2: toNumberOrNull(freeAreaM2),
-      tiltDeg: toNumberOrNull(tiltDeg),
-      heightOver7m,
-      financingWanted,
-    })
-  }
-
-  const canContinue = useMemo(() => {
-    // Minimalbedingungen: Wir brauchen zumindest JahreskWh Haushalt ODER Monatskosten Haushalt,
-    // und ein paar Gebäudedaten für PV (die WP nutzt wir später separat detailierter).
-    const hasAnyHH = annualKWhHousehold.trim() !== '' || monthlyCostHouseholdEuro.trim() !== ''
-    const hasRoofBasics = Boolean(roofOrientation) && Boolean(roofType) && (freeAreaM2.trim() !== '')
-    return hasAnyHH && hasRoofBasics
-  }, [annualKWhHousehold, monthlyCostHouseholdEuro, roofOrientation, roofType, freeAreaM2])
-
-  function next() {
-    persistToContext()
-    // Entscheiden, wohin: Solarkalkulator, Wärmepumpe, oder Ergebnisse – je nach Modus
-    const mode = state.basics.mode
-    if (mode === 'pv') nav('/solarkalkulator')
-    else if (mode === 'hp') nav('/waermepumpe')
-    else nav('/ergebnisse')
-  }
-
   useEffect(() => {
-    // Live-Shadow-Save (optional): wenn du lieber erst beim Klick speichern willst, entferne diesen Effekt
-    persistToContext()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annualKWhHousehold, monthlyCostHouseholdEuro, annualKWhHeating, monthlyCostHeatingEuro, buildYear, roofCover, roofOrientation, roofType, freeAreaM2, tiltDeg, heightOver7m, financingWanted])
+    updateProjectData({
+      consumption: {
+        annualKWhHousehold: toNumberOrNull(annualKWhHousehold),
+        monthlyCostHouseholdEuro: toNumberOrNull(monthlyCostHouseholdEuro),
+        annualKWhHeating: toNumberOrNull(annualKWhHeating),
+        monthlyCostHeatingEuro: toNumberOrNull(monthlyCostHeatingEuro),
+        currentHeatingType,
+        heatingAge: toNumberOrNull(heatingAge),
+        fuelType,
+        householdSize: toNumberOrNull(householdSize),
+        homeOfficeHours: toNumberOrNull(homeOfficeHours),
+        electricAppliances,
+        zukunft_epump,
+        zukunft_wallbox,
+        zukunft_pool,
+        zukunft_sauna,
+        zukunft_klima,
+        zukunft_erweiterung,
+        epump_verbrauch_schaetzung: toNumberOrNull(epump_verbrauch_schaetzung),
+        wallbox_verbrauch_schaetzung: toNumberOrNull(wallbox_verbrauch_schaetzung),
+        pool_verbrauch_schaetzung: toNumberOrNull(pool_verbrauch_schaetzung),
+        eigenverbrauch_maximieren,
+        netzeinspeisung_begrenzen,
+        backup_wichtig,
+        umwelt_prioritaet
+      }
+    })
+  }, [
+    annualKWhHousehold, monthlyCostHouseholdEuro, annualKWhHeating, monthlyCostHeatingEuro,
+    currentHeatingType, heatingAge, fuelType, householdSize, homeOfficeHours, electricAppliances,
+    zukunft_epump, zukunft_wallbox, zukunft_pool, zukunft_sauna, zukunft_klima, zukunft_erweiterung,
+    epump_verbrauch_schaetzung, wallbox_verbrauch_schaetzung, pool_verbrauch_schaetzung,
+    eigenverbrauch_maximieren, netzeinspeisung_begrenzen, backup_wichtig, umwelt_prioritaet,
+    updateProjectData
+  ])
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Bedarfsanalyse</h2>
-
-      {/* Verbrauchswerte */}
-      <section className="rounded-xl bg-white p-5 shadow">
-        <h3 className="mb-3 text-lg font-semibold">Verbrauchswerte</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Jahresverbrauch Haushalt (kWh)">
-            <input
-              inputMode="numeric"
-              className="w-full rounded border px-3 py-2"
-              value={annualKWhHousehold}
-              onChange={(e) => setAnnualKWhHousehold(e.target.value)}
-              placeholder="z. B. 3500"
-            />
-          </Field>
-          <Field label="Monatliche Stromkosten Haushalt (€)">
-            <input
-              inputMode="decimal"
-              className="w-full rounded border px-3 py-2"
-              value={monthlyCostHouseholdEuro}
-              onChange={(e) => setMonthlyCostHouseholdEuro(e.target.value)}
-              placeholder="z. B. 100"
-            />
-          </Field>
-
-          <Field label="Jahresverbrauch Heizung (kWh) – optional">
-            <input
-              inputMode="numeric"
-              className="w-full rounded border px-3 py-2"
-              value={annualKWhHeating}
-              onChange={(e) => setAnnualKWhHeating(e.target.value)}
-              placeholder="z. B. 2000"
-            />
-          </Field>
-          <Field label="Monatliche Stromkosten Heizung (€) – optional">
-            <input
-              inputMode="decimal"
-              className="w-full rounded border px-3 py-2"
-              value={monthlyCostHeatingEuro}
-              onChange={(e) => setMonthlyCostHeatingEuro(e.target.value)}
-              placeholder="z. B. 80"
-            />
-          </Field>
-        </div>
-
-        {/* Ableitungen */}
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded border p-3 text-sm">
-            <div className="font-medium">Jährliche Gesamtkosten (€)</div>
-            <div className="text-slate-700">
-              {derived.annualCostTotal != null ? derived.annualCostTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '—'}
-            </div>
-          </div>
-          <div className="rounded border p-3 text-sm">
-            <div className="font-medium">Jahresverbrauch gesamt (kWh)</div>
-            <div className="text-slate-700">
-              {derived.annualKWhTotal != null ? derived.annualKWhTotal.toLocaleString('de-DE') : '—'}
-            </div>
-          </div>
-          <div className="rounded border p-3 text-sm">
-            <div className="font-medium">Tarif (€/kWh)</div>
-            <div className="text-slate-700">
-              {derived.euroPerKWh != null ? derived.euroPerKWh.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Gebäude */}
-      <section className="rounded-xl bg-white p-5 shadow">
-        <h3 className="mb-3 text-lg font-semibold">Gebäudedaten</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Field label="Baujahr">
-            <input
-              className="w-full rounded border px-3 py-2"
-              value={buildYear}
-              onChange={(e) => setBuildYear(e.target.value)}
-              placeholder="z. B. 1998"
-            />
-          </Field>
-          <Field label="Dachdeckungsart">
-            <select className="w-full rounded border px-3 py-2" value={roofCover ?? ''} onChange={e=>setRoofCover(e.target.value)}>
-              <option value="">— Bitte wählen —</option>
-              {ROOF_COVER.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </Field>
-          <Field label="Dachausrichtung">
-            <select className="w-full rounded border px-3 py-2" value={roofOrientation ?? ''} onChange={e=>setRoofOrientation(e.target.value)}>
-              <option value="">— Bitte wählen —</option>
-              {ROOF_ORIENT.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </Field>
-
-          <Field label="Dachart">
-            <select className="w-full rounded border px-3 py-2" value={roofType ?? ''} onChange={e=>setRoofType(e.target.value)}>
-              <option value="">— Bitte wählen —</option>
-              {ROOF_TYPES.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </Field>
-          <Field label="Freie Fläche (m²)">
-            <input
-              inputMode="decimal"
-              className="w-full rounded border px-3 py-2"
-              value={freeAreaM2}
-              onChange={(e) => setFreeAreaM2(e.target.value)}
-              placeholder="z. B. 60"
-            />
-          </Field>
-          <Field label="Dachneigung (°)">
-            <input
-              inputMode="decimal"
-              className="w-full rounded border px-3 py-2"
-              value={tiltDeg}
-              onChange={(e) => setTiltDeg(e.target.value)}
-              placeholder="z. B. 30"
-            />
-          </Field>
-
-          <div className="col-span-1 md:col-span-3 flex items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={heightOver7m} onChange={e=>setHeightOver7m(e.target.checked)} />
-              Gebäudehöhe > 7 m (Gerüstkosten berücksichtigen)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={financingWanted} onChange={e=>setFinancingWanted(e.target.checked)} />
-              Finanzierung gewünscht
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <div className="flex justify-between">
-        <button
-          type="button"
-          className="rounded bg-slate-200 px-4 py-2 text-sm hover:bg-slate-300"
-          onClick={() => nav('/projekt-bedarf/kundendaten')}
-        >
-          Zurück
-        </button>
-        <button
-          type="button"
-          disabled={!canContinue}
-          className={`rounded px-4 py-2 text-sm text-white ${canContinue ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
-          onClick={next}
-        >
-          Nächster Bereich
-        </button>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Bedarfsanalyse</h1>
+        <p className="text-slate-600">Energieverbrauch und zukünftige Planungen erfassen</p>
       </div>
+
+      {/* Aktueller Energieverbrauch - Haushaltsstrom */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-lg font-medium mb-4">Haushaltsstrom</h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Jährlicher Verbrauch (kWh/Jahr) *">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={annualKWhHousehold} 
+              onChange={(e) => setAnnualKWhHousehold(e.target.value)} 
+              placeholder="z.B. 4500"
+              required
+            />
+          </Field>
+          <Field label="Monatliche Kosten (€/Monat) *">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={monthlyCostHouseholdEuro} 
+              onChange={(e) => setMonthlyCostHouseholdEuro(e.target.value)} 
+              placeholder="z.B. 120"
+              required
+            />
+          </Field>
+        </div>
+        
+        {annualKWhHousehold && monthlyCostHouseholdEuro && (
+          <div className="mt-4 p-3 bg-blue-50 rounded border text-sm">
+            <strong>Haushaltsstrom:</strong> {annCostHH.toFixed(0)} €/Jahr
+          </div>
+        )}
+      </div>
+
+      {/* Heizung */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-lg font-medium mb-4">Heizung &amp; Warmwasser</h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Jährlicher Verbrauch (kWh/Jahr)">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={annualKWhHeating} 
+              onChange={(e) => setAnnualKWhHeating(e.target.value)} 
+              placeholder="z.B. 15000"
+            />
+          </Field>
+          <Field label="Monatliche Kosten (€/Monat)">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={monthlyCostHeatingEuro} 
+              onChange={(e) => setMonthlyCostHeatingEuro(e.target.value)} 
+              placeholder="z.B. 180"
+            />
+          </Field>
+          <Field label="Heizungstyp">
+            <select 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={currentHeatingType} 
+              onChange={(e) => setCurrentHeatingType(e.target.value)}
+            >
+              <option value="">Bitte wählen</option>
+              <option value="gas">Gasheizung</option>
+              <option value="oil">Ölheizung</option>
+              <option value="electric">Elektroheizung</option>
+              <option value="district">Fernwärme</option>
+              <option value="wood">Holz/Pellets</option>
+              <option value="heatpump">Wärmepumpe</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </Field>
+          <Field label="Alter der Heizung (Jahre)">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={heatingAge} 
+              onChange={(e) => setHeatingAge(e.target.value)} 
+              placeholder="z.B. 15"
+            />
+          </Field>
+          <Field label="Brennstoff/Energieträger">
+            <select 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={fuelType} 
+              onChange={(e) => setFuelType(e.target.value)}
+            >
+              <option value="">Bitte wählen</option>
+              <option value="gas">Erdgas</option>
+              <option value="propane">Flüssiggas</option>
+              <option value="oil">Heizöl</option>
+              <option value="electric">Strom</option>
+              <option value="wood">Holz</option>
+              <option value="pellets">Pellets</option>
+              <option value="district">Fernwärme</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </Field>
+        </div>
+        
+        {annualKWhHeating && monthlyCostHeatingEuro && (
+          <div className="mt-4 p-3 bg-orange-50 rounded border text-sm">
+            <strong>Heizung:</strong> {annCostHeat.toFixed(0)} €/Jahr
+          </div>
+        )}
+      </div>
+
+      {/* Haushaltsdaten */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-lg font-medium mb-4">Haushaltsdaten</h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Field label="Anzahl Personen">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={householdSize} 
+              onChange={(e) => setHouseholdSize(e.target.value)} 
+              placeholder="z.B. 4"
+            />
+          </Field>
+          <Field label="Homeoffice-Stunden/Woche">
+            <input 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={homeOfficeHours} 
+              onChange={(e) => setHomeOfficeHours(e.target.value)} 
+              placeholder="z.B. 20"
+            />
+          </Field>
+          <Field label="Große Stromverbraucher">
+            <select 
+              className="w-full rounded border border-slate-300 px-3 py-2" 
+              value={electricAppliances} 
+              onChange={(e) => setElectricAppliances(e.target.value)}
+            >
+              <option value="">Keine besonderen</option>
+              <option value="pool">Pool-Pumpe</option>
+              <option value="sauna">Sauna</option>
+              <option value="workshop">Werkstatt</option>
+              <option value="server">Server/IT</option>
+              <option value="multiple">Mehrere</option>
+            </select>
+          </Field>
+        </div>
+      </div>
+
+      {/* Gesamtübersicht */}
+      {annualCostTotal > 0 && (
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-lg font-medium mb-4">Energiekosten-Übersicht</h3>
+          <div className="grid md:grid-cols-4 gap-4">
+            <div className="text-center p-3 bg-slate-50 rounded">
+              <div className="text-2xl font-bold text-slate-800">{annualKWhTotal.toFixed(0)}</div>
+              <div className="text-sm text-slate-600">kWh/Jahr gesamt</div>
+            </div>
+            <div className="text-center p-3 bg-slate-50 rounded">
+              <div className="text-2xl font-bold text-slate-800">{annualCostTotal.toFixed(0)} €</div>
+              <div className="text-sm text-slate-600">€/Jahr gesamt</div>
+            </div>
+            <div className="text-center p-3 bg-slate-50 rounded">
+              <div className="text-2xl font-bold text-slate-800">{(annualCostTotal/12).toFixed(0)} €</div>
+              <div className="text-sm text-slate-600">€/Monat gesamt</div>
+            </div>
+            <div className="text-center p-3 bg-slate-50 rounded">
+              <div className="text-2xl font-bold text-slate-800">{euroPerKWh.toFixed(2)} €</div>
+              <div className="text-sm text-slate-600">€/kWh Durchschnitt</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zukunftsplanung */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-lg font-medium mb-4">Zukünftige Verbraucher</h3>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h4 className="font-medium text-slate-700">Geplante Anschaffungen</h4>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zukunft_epump} onChange={(e) => setZukunftEpump(e.target.checked)} />
+              <span>Wärmepumpe geplant</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zukunft_wallbox} onChange={(e) => setZukunftWallbox(e.target.checked)} />
+              <span>Wallbox/E-Auto geplant</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zukunft_pool} onChange={(e) => setZukunftPool(e.target.checked)} />
+              <span>Pool geplant</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zukunft_sauna} onChange={(e) => setZukunftSauna(e.target.checked)} />
+              <span>Sauna geplant</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zukunft_klima} onChange={(e) => setZukunftKlima(e.target.checked)} />
+              <span>Klimaanlage geplant</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zukunft_erweiterung} onChange={(e) => setZukunftErweiterung(e.target.checked)} />
+              <span>Gebäudeerweiterung geplant</span>
+            </label>
+          </div>
+          
+          <div className="space-y-3">
+            <h4 className="font-medium text-slate-700">Geschätzte Zusatzverbräuche (kWh/Jahr)</h4>
+            <Field label="Wärmepumpe (geschätzt)">
+              <input 
+                className="w-full rounded border border-slate-300 px-3 py-2" 
+                value={epump_verbrauch_schaetzung} 
+                onChange={(e) => setEpumpVerbrauch(e.target.value)} 
+                placeholder="z.B. 3000"
+                disabled={!zukunft_epump}
+              />
+            </Field>
+            <Field label="Wallbox/E-Auto (geschätzt)">
+              <input 
+                className="w-full rounded border border-slate-300 px-3 py-2" 
+                value={wallbox_verbrauch_schaetzung} 
+                onChange={(e) => setWallboxVerbrauch(e.target.value)} 
+                placeholder="z.B. 2500"
+                disabled={!zukunft_wallbox}
+              />
+            </Field>
+            <Field label="Pool/Sauna (geschätzt)">
+              <input 
+                className="w-full rounded border border-slate-300 px-3 py-2" 
+                value={pool_verbrauch_schaetzung} 
+                onChange={(e) => setPoolVerbrauch(e.target.value)} 
+                placeholder="z.B. 1500"
+                disabled={!zukunft_pool && !zukunft_sauna}
+              />
+            </Field>
+          </div>
+        </div>
+      </div>
+
+      {/* Spezielle Anforderungen */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-lg font-medium mb-4">Spezielle Anforderungen &amp; Prioritäten</h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={eigenverbrauch_maximieren} onChange={(e) => setEigenverbrauch(e.target.checked)} />
+              <span>Eigenverbrauch maximieren</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={netzeinspeisung_begrenzen} onChange={(e) => setNetzeinspeisung(e.target.checked)} />
+              <span>Netzeinspeisung begrenzen</span>
+            </label>
+          </div>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={backup_wichtig} onChange={(e) => setBackupWichtig(e.target.checked)} />
+              <span>Notstromfähigkeit wichtig</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={umwelt_prioritaet} onChange={(e) => setUmweltPrioritaet(e.target.checked)} />
+              <span>Umweltschutz hat Priorität</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <WizardNav
+        backTo="/project/building"
+        nextTo="/project/needs"
+        nextDisabled={!requiredOk}
+      />
     </div>
+  )
+}
+
+function Field({label, children}: {label: string; children: React.ReactNode}) {
+  return (
+    <label className="block">
+      <span className="block text-sm font-medium text-slate-700 mb-1">{label}</span>
+      {children}
+    </label>
   )
 }

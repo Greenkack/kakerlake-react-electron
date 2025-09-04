@@ -6,6 +6,9 @@ const basics: ProjectBasics = {
   annualConsumptionHouseholdKWh: 3500,
   // annualConsumptionHeatingKWh: 0, // optional
   tariffEuroPerKWh: 0.27,
+  anlagentyp: 'neuanlage',
+  einspeisetyp: 'teileinspeisung',
+  kundentyp: 'privat',
 }
 
 const setup: PVSetup = {
