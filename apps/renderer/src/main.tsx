@@ -38,6 +38,19 @@ function App() {
 function Home() {
   const navigate = useNavigate();
 
+  const clearAllData = () => {
+    if (confirm('⚠️ ACHTUNG: Alle gespeicherten Projektdaten löschen?\n\nDies löscht:\n- Kundendaten\n- Gebäudedaten\n- Verbrauchsdaten\n- Alle Projekteinstellungen\n\nDieser Vorgang kann nicht rückgängig gemacht werden!')) {
+      // Lösche alle Kakerlake localStorage-Daten
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('kakerlake')) {
+          localStorage.removeItem(key);
+        }
+      });
+      alert('✅ Alle Projektdaten wurden erfolgreich gelöscht!');
+      window.location.reload(); // Seite neu laden für sauberen Zustand
+    }
+  };
+
   const menuItems = [
     { 
       id: 'project', 
@@ -115,7 +128,7 @@ function Home() {
         ))}
       </div>
       
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+      <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
         <h3 className="font-semibold text-green-800 flex items-center mb-2">
           ✅ System Status
         </h3>
@@ -132,6 +145,33 @@ function Home() {
             <span className="text-green-700">Build-Zeit:</span>
             <span className="text-green-800 font-mono">{new Date().toLocaleString('de-DE')}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Developer Tools */}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <h3 className="font-semibold text-red-800 flex items-center mb-2">
+          🛠️ Entwickler-Tools
+        </h3>
+        <p className="text-red-700 text-sm mb-4">
+          Diese Funktionen sind für Entwicklung und Debugging gedacht.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={clearAllData}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            🗑️ Alle Projektdaten löschen
+          </button>
+          <button
+            onClick={() => {
+              console.log('localStorage contents:', localStorage);
+              alert('Siehe Browser-Konsole (F12) für localStorage-Inhalte');
+            }}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            🔍 localStorage anzeigen
+          </button>
         </div>
       </div>
     </div>
