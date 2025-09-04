@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { ProjectProvider } from "../../state/project";
 import { WizardProvider } from "../../state/wizard";
+import FooterNav from "../../components/FooterNav";
 
 // Import der echten Projekt-Komponenten
 import ModeSelect from "./ModeSelect";
@@ -50,6 +51,9 @@ export default function ProjectWizard(): JSX.Element {
               <Route path="*" element={<Navigate to="mode" replace />} />
             </Routes>
           </div>
+          
+          {/* Footer Navigation */}
+          <FooterNav />
         </div>
       </WizardProvider>
     </ProjectProvider>
