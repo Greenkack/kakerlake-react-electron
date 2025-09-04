@@ -9,7 +9,7 @@ import SolarCalc from "./routes/SolarCalculator";
 import HeatpumpSim from "./routes/HeatpumpSimulator";
 import PdfHubReal from "./routes/PdfHub";
 import CRMMenuReal from "./routes/CRM/Menu";
-import AdminLoginReal from "./routes/Admin/Login";
+import AdminRouter from "./routes/Admin/index";
 
 function App() {
   return (
@@ -27,7 +27,7 @@ function App() {
           <Route path="/heatpump" element={<HeatpumpSim />} />
           <Route path="/pdf/*" element={<PdfHubReal />} />
           <Route path="/crm" element={<CRMMenuReal />} />
-          <Route path="/admin" element={<AdminLoginReal />} />
+          <Route path="/admin/*" element={<AdminRouter />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

@@ -1,8 +1,7 @@
 // apps/renderer/src/store/project.tsx
 import React, { createContext, useContext, useMemo, useState } from "react";
-import type { AnlagenModus } from "../../../packages/core/dist/index.js";
 
-export type Mode = AnlagenModus; // 'pv' | 'wp' | 'pv+wp'
+export type Mode = 'pv' | 'wp' | 'pv+wp';
 
 export type Customer = {
   anlagentyp: 'neuanlage' | 'bestandsanlage';
