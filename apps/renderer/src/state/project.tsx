@@ -48,6 +48,8 @@ export interface ConsumptionData {
   monthlyCostHouseholdEuro?: number;
   annualKWhHeating?: number;
   monthlyCostHeatingEuro?: number;
+  annualKWhOther?: number;
+  monthlyCostOtherEuro?: number;
   currentHeatingType?: string;
   heatingAge?: number;
   fuelType?: string;

@@ -2,7 +2,18 @@ import React, { useMemo } from "react";
 import { useProject } from "../state/project";
 import { Link } from "react-router-dom";
 import WizardNav from "../components/WizardNav";
+import SmartRecommendations from "../components/SmartRecommendations";
+import InteractiveCalculator from "../components/InteractiveCalculator";
 import { calculatePVSystem, type CalculationParams } from "../utils/calculations";
+import { 
+  formatGermanNumber, 
+  formatGermanCurrency, 
+  formatGermanInteger, 
+  formatGermanKWh, 
+  formatGermanKWp,
+  formatGermanElectricityPrice,
+  formatGermanPercent 
+} from "../utils/germanFormat";
 
 export default function Results(): JSX.Element {
   const { state } = useProject();
@@ -55,19 +66,19 @@ export default function Results(): JSX.Element {
         <h2 className="text-xl font-semibold text-blue-800 mb-4">⚡ System-Übersicht</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg p-4 text-center border">
-            <div className="text-2xl font-bold text-blue-600">{calculations.finalSystemSize} kWp</div>
+            <div className="text-2xl font-bold text-blue-600">{formatGermanKWp(calculations.finalSystemSize)}</div>
             <div className="text-sm text-slate-600">Anlagengröße</div>
           </div>
           <div className="bg-white rounded-lg p-4 text-center border">
-            <div className="text-2xl font-bold text-green-600">{calculations.moduleCount}</div>
+            <div className="text-2xl font-bold text-green-600">{formatGermanInteger(calculations.moduleCount)}</div>
             <div className="text-sm text-slate-600">Module (440Wp)</div>
           </div>
           <div className="bg-white rounded-lg p-4 text-center border">
-            <div className="text-2xl font-bold text-orange-600">{calculations.roofUtilization}%</div>
+            <div className="text-2xl font-bold text-orange-600">{formatGermanPercent(calculations.roofUtilization)}</div>
             <div className="text-sm text-slate-600">Dachnutzung</div>
           </div>
           <div className="bg-white rounded-lg p-4 text-center border">
-            <div className="text-2xl font-bold text-purple-600">{calculations.systemCost.toLocaleString('de-DE')} €</div>
+            <div className="text-2xl font-bold text-purple-600">{formatGermanCurrency(calculations.systemCost, 0)}</div>
             <div className="text-sm text-slate-600">Investition</div>
           </div>
         </div>
@@ -78,16 +89,16 @@ export default function Results(): JSX.Element {
         <h2 className="text-xl font-semibold mb-4">📈 Energieerträge</h2>
         <div className="grid md:grid-cols-3 gap-4 mb-4">
           <div className="bg-green-50 rounded-lg p-4 text-center border border-green-200">
-            <div className="text-2xl font-bold text-green-600">{calculations.annualYield.toLocaleString('de-DE')}</div>
-            <div className="text-sm text-slate-600">kWh/Jahr</div>
+            <div className="text-2xl font-bold text-green-600">{formatGermanKWh(calculations.annualYield)}</div>
+            <div className="text-sm text-slate-600">pro Jahr</div>
           </div>
           <div className="bg-blue-50 rounded-lg p-4 text-center border border-blue-200">
-            <div className="text-2xl font-bold text-blue-600">{calculations.monthlyYield.toLocaleString('de-DE')}</div>
-            <div className="text-sm text-slate-600">kWh/Monat</div>
+            <div className="text-2xl font-bold text-blue-600">{formatGermanKWh(calculations.monthlyYield)}</div>
+            <div className="text-sm text-slate-600">pro Monat</div>
           </div>
           <div className="bg-orange-50 rounded-lg p-4 text-center border border-orange-200">
-            <div className="text-2xl font-bold text-orange-600">{calculations.dailyYield}</div>
-            <div className="text-sm text-slate-600">kWh/Tag</div>
+            <div className="text-2xl font-bold text-orange-600">{formatGermanKWh(calculations.dailyYield)}</div>
+            <div className="text-sm text-slate-600">pro Tag</div>
           </div>
         </div>
         
@@ -169,6 +180,31 @@ export default function Results(): JSX.Element {
           </p>
         </div>
       </section>
+
+      {/* Intelligente Empfehlungen */}
+      <SmartRecommendations 
+        data={{
+          totalConsumption: consumption.annualKWhHousehold || 0,
+          electricityPrice: 0.35,
+          potentialSavings: calculations.annualSavings,
+          futureConsumption: (consumption.annualKWhHousehold || 0) * 1.02,
+          hasSignificantIncrease: (consumption.annualKWhHousehold || 0) > 5000,
+          consumptionCategory: consumption.annualKWhHousehold && consumption.annualKWhHousehold > 5000 ? 'hoch' : 
+                              consumption.annualKWhHousehold && consumption.annualKWhHousehold < 3000 ? 'niedrig' : 'mittel'
+        }}
+        buildingData={{
+          roofArea: building.roofArea,
+          roofOrientation: building.roofOrientation,
+          roofTilt: building.roofTilt
+        }}
+      />
+
+      {/* Interaktiver Rechner */}
+      <InteractiveCalculator 
+        initialSystemSize={calculations.finalSystemSize}
+        annualConsumption={consumption.annualKWhHousehold || 4000}
+        roofArea={building.roofArea}
+      />
 
       {/* Projektbasis */}
       <section className="rounded-xl bg-white p-6 shadow border">

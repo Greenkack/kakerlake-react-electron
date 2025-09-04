@@ -243,7 +243,7 @@ export default function CustomerForm(): JSX.Element {
 
       <WizardNav
         backTo="/project/mode"
-        nextTo="/results"
+        nextTo="/project/demand"
         nextDisabled={!requiredOk}
         showHome={true}
       />
