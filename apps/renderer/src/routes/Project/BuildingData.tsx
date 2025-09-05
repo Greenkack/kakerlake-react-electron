@@ -177,7 +177,41 @@ export default function BuildingData(): JSX.Element {
         </div>
       </div>
 
-      {/* TODO: Alle deine weiteren bestehenden Abschnitte (Dach-Spezifikationen, Technische Anschlüsse, Besonderheiten, etc.) hier lassen – unverändert */}
+      <div className="bg-white rounded-lg border p-4">
+        <h3 className="text-lg font-medium mb-4">Dach-Spezifikationen</h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          <FieldSelect label="Dachart" value={v.dachart}
+                       onChange={dachart=>setV({...v,dachart})}
+                       options={["Satteldach","Walmdach","Flachdach","Pultdach","Mansarddach"]}/>
+          <FieldSelect label="Dachausrichtung" value={v.ausrichtung}
+                       onChange={ausrichtung=>setV({...v,ausrichtung})}
+                       options={["Süd","Südost","Südwest","Ost","West","Nord"]}/>
+          <FieldInput label="Dachneigung (°) *" value={v.neigung}
+                      onChange={neigung=>setV({...v,neigung})} placeholder="z.B. 35"/>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4 mt-4">
+          <FieldInput label="Dachfläche (m²) *" value={v.flaeche}
+                      onChange={flaeche=>setV({...v,flaeche})} placeholder="z.B. 120"/>
+          <FieldSelect label="Verschattung" value={v.verschattung}
+                       onChange={verschattung=>setV({...v,verschattung})}
+                       options={["keine","gering","mittel","stark"]}/>
+          <FieldSelect label="Dachdeckung" value={v.deckung}
+                       onChange={deckung=>setV({...v,deckung})}
+                       options={["Frankfurter Pfannen","Biberschwanz","Schiefer","Blech","Andere"]}/>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border p-4">
+        <h3 className="text-lg font-medium mb-4">Technische Anschlüsse</h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <FieldSelect label="Elektrischer Anschluss" value={v.elektricalConnection}
+                       onChange={elektricalConnection=>setV({...v,elektricalConnection})}
+                       options={["Standardanschluss","Verstärkter Anschluss","Industrieanschluss"]}/>
+          <FieldSelect label="Heizungssystem" value={v.heatingSystem}
+                       onChange={heatingSystem=>setV({...v,heatingSystem})}
+                       options={["Gas","Öl","Wärmepumpe","Fernwärme","Pellets","Andere"]}/>
+        </div>
+      </div>
 
       {/* Status / Fehler */}
       {errorMsg && (

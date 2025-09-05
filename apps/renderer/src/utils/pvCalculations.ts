@@ -1,4 +1,9 @@
 import { ProjectState } from "../state/project";
+import { 
+  calculateComprehensivePvAnalysis,
+  PvCalculationInput as AdvancedPvInput,
+  useAdvancedPvCalculations 
+} from "./pvCalculationsAdvanced";
 
 // Hilfsfunktionen
 const safe = (v: unknown, def = 0) => {
@@ -45,6 +50,12 @@ export interface PvCalcResult {
   afa_linear_jahr_eur?: number;
   foerder_abzugte_kosten_eur?: number;
   inflationsbereinigter_wert_20a_eur?: number;
+  
+  // Erweiterte Ergebnisse aus pvCalculationsAdvanced
+  extended_analysis?: any;
+  monte_carlo_success_probability?: number;
+  co2_total_savings_lifetime_tons?: number;
+  optimization_suggestions_count?: number;
 }
 
 export function deriveCalcInputFromState(state: ProjectState): PvCalcInput {
@@ -150,7 +161,7 @@ export function computePvResults(input: PvCalcInput): PvCalcResult {
     ? Math.min(eigen * 0.25, input.speicher_kwh * 365 * 0.2)
     : 0;
 
-  return {
+  const baseResults: PvCalcResult = {
     autarkiegrad_prozent: autarkiegrad(eigen, input.gesamtverbrauch_kwh),
     jahres_ersparnis_eur: jahresErsparnis,
     kumulierte_ersparnis_20a_eur: kumulierte_ersparnis(jahresErsparnis, laufzeit),
@@ -185,6 +196,36 @@ export function computePvResults(input: PvCalcInput): PvCalcResult {
       laufzeit
     ),
   };
+
+  // Erweiterte Berechnungen hinzufügen
+  try {
+    const advancedInput: AdvancedPvInput = {
+      pv_power_kwp: input.pv_kwp,
+      annual_production_kwh: input.jahresertrag_kwh,
+      annual_consumption_kwh: input.gesamtverbrauch_kwh,
+      self_consumption_kwh: input.eigenverbrauch_kwh,
+      investment_costs_eur: gesamtNachFoerder,
+      electricity_price_eur_kwh: input.strompreis_eur_kwh,
+      feed_in_tariff_eur_kwh: input.einspeiseverguetung_eur_kwh || 0.08,
+      storage_capacity_kwh: input.speicher_kwh,
+      simulation_years: laufzeit,
+      discount_rate: input.zinssatz,
+      electricity_price_increase_rate: input.inflationsrate
+    };
+
+    const extendedAnalysis = calculateComprehensivePvAnalysis(advancedInput);
+    
+    // Erweiterte Ergebnisse zu den Basis-Ergebnissen hinzufügen
+    baseResults.extended_analysis = extendedAnalysis;
+    baseResults.monte_carlo_success_probability = extendedAnalysis.monte_carlo_analysis?.success_probability;
+    baseResults.co2_total_savings_lifetime_tons = extendedAnalysis.detailed_co2_analysis?.total_co2_savings;
+    baseResults.optimization_suggestions_count = extendedAnalysis.optimization_suggestions?.length || 0;
+    
+  } catch (error) {
+    console.warn('Erweiterte PV-Berechnungen fehlgeschlagen:', error);
+  }
+
+  return baseResults;
 }
 
 // Hook

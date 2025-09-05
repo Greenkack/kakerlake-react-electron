@@ -15,6 +15,29 @@ from datetime import datetime
 import traceback
 import requests  # Für HTTP-Anfragen an PVGIS
 
+# Import der erweiterten PV-Berechnungsalgorithmen
+try:
+    from pv_calculations_core import (
+        calculate_comprehensive_pv_analysis,
+        PVCalculationsAdvanced,
+        calculate_annual_energy_yield,
+        calculate_self_consumption_quote,
+        calculate_autarky_degree,
+        calculate_payback_period,
+        calculate_net_present_value,
+        calculate_irr,
+        calculate_total_roi,
+        calculate_co2_savings,
+        calculate_co2_payback_time,
+        calculate_annuity,
+        calculate_leasing_costs,
+    )
+    PV_CALCULATIONS_CORE_AVAILABLE = True
+except ImportError as e:
+    PV_CALCULATIONS_CORE_AVAILABLE = False
+    print(f"Warnung: pv_calculations_core nicht verfügbar: {e}")
+    # Fallback-Implementierungen werden bei Bedarf verwendet
+
 # Streamlit Import für UI-Funktionen
 try:
     import streamlit as st
@@ -3866,6 +3889,58 @@ def perform_calculations(
     results["verschattungsverlust_pct"] = float(
         project_details.get("verschattungsverlust_pct", 0.0) or 0.0
     )
+
+    # *** ERWEITERTE PV-BERECHNUNGEN INTEGRIEREN ***
+    if PV_CALCULATIONS_CORE_AVAILABLE:
+        try:
+            # Daten für erweiterte Berechnung vorbereiten
+            extended_calc_data = {
+                "anlage_kwp": results.get("anlage_kwp", 0),
+                "annual_pv_production_kwh": results.get("annual_pv_production_kwh", 0),
+                "annual_consumption_kwh": results.get("gesamtverbrauch_kwh", 4000),
+                "self_consumption_kwh": results.get("eigenverbrauch_kwh", 0),
+                "total_investment_netto": results.get("total_investment_netto", 20000),
+                "electricity_price_eur_kwh": results.get("stromtarif_eur_kwh", 0.30),
+                "feed_in_tariff_eur_kwh": results.get("einspeiseverguetung_eur_kwh", 0.08),
+                "storage_capacity_kwh": results.get("speicherkapazitaet_kwh", 0),
+                "customer_type": customer_data.get("customer_type", "private"),
+            }
+            
+            # Umfassende PV-Analyse durchführen
+            extended_results = calculate_comprehensive_pv_analysis(extended_calc_data)
+            
+            # Erweiterte Ergebnisse zu den Hauptergebnissen hinzufügen
+            results.update({
+                "pv_calculations_core_results": extended_results,
+                "extended_npv_eur": extended_results.get("npv_eur", 0),
+                "extended_irr_percent": extended_results.get("irr_percent", 0),
+                "extended_payback_years": extended_results.get("payback_period_years", float('inf')),
+                "extended_annual_co2_savings_kg": extended_results.get("annual_co2_savings_kg", 0),
+                "extended_co2_payback_years": extended_results.get("co2_payback_years", 0),
+                "monte_carlo_success_probability": extended_results.get("monte_carlo_analysis", {}).get("success_probability", 0),
+                "optimization_suggestions_available": bool(extended_results.get("optimization_suggestions", {}).get("top_recommendations", [])),
+            })
+            
+            # Detaillierte CO2-Analyse verfügbar machen
+            if "detailed_co2_analysis" in extended_results:
+                co2_analysis = extended_results["detailed_co2_analysis"]
+                results.update({
+                    "co2_total_savings_lifetime_tons": co2_analysis.get("total_co2_savings", 0),
+                    "co2_tree_equivalent": co2_analysis.get("tree_equivalent", 0),
+                    "co2_car_km_equivalent": co2_analysis.get("car_km_equivalent", 0),
+                })
+            
+            if app_debug_mode_is_enabled:
+                print("CALC: Erweiterte PV-Berechnungen erfolgreich integriert")
+                
+        except Exception as e:
+            error_msg = f"Fehler bei erweiterten PV-Berechnungen: {str(e)}"
+            errors_list.append(error_msg)
+            if app_debug_mode_is_enabled:
+                print(f"CALC: {error_msg}")
+    else:
+        if app_debug_mode_is_enabled:
+            print("CALC: Erweiterte PV-Berechnungen nicht verfügbar (pv_calculations_core nicht geladen)")
 
     # if app_debug_mode_is_enabled: print(f"--- CALCULATIONS.PY: Berechnungen abgeschlossen. Ergebnisse (Auszug): {json.dumps({k: v for k,v in results.items() if not isinstance(v, list) or len(v) < 5}, indent=2, ensure_ascii=False)}") # Bereinigt
     # if app_debug_mode_is_enabled and errors_list: print(f"CALC: Gesammelte Fehler/Hinweise: {errors_list}") # Bereinigt

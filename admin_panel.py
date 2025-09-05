@@ -28,6 +28,20 @@ except Exception:
     pa_upsert_attribute = None  # type: ignore
     pa_delete_attribute = None  # type: ignore
 
+# Neue Datenbank-Management Module
+try:
+    from admin_product_database_ui import render_product_admin_ui
+    from admin_brand_logo_management_ui import render_brand_logo_admin_ui
+    PRODUCT_DB_AVAILABLE = True
+    BRAND_LOGO_AVAILABLE = True
+except ImportError:
+    def render_product_admin_ui():
+        st.error("Produktdatenbank-Modul nicht verfügbar")
+    def render_brand_logo_admin_ui():
+        st.error("Brand-Logo-Modul nicht verfügbar")
+    PRODUCT_DB_AVAILABLE = False
+    BRAND_LOGO_AVAILABLE = False
+
 # NEU: Definition von WIDGET_KEY_SUFFIX, um NameError zu beheben
 # Dieser Suffix wird verwendet, um die Eindeutigkeit von Streamlit-Widget-Keys
 # innerhalb dieses Admin-Panels sicherzustellen.
@@ -144,6 +158,7 @@ _delete_company_document_safe: Callable = _dummy_delete_company_document
 
 ADMIN_TAB_KEYS_DEFINITION_GLOBAL = [
     "admin_tab_company_management_new", "admin_tab_product_management", "admin_tab_logo_management", 
+    "admin_tab_product_database_crud", "admin_tab_brand_logo_crud",
     "admin_tab_general_settings", "admin_tab_price_matrix", "admin_tab_tariff_management", "admin_tab_pdf_design",
     "admin_tab_pdf_title_images", "admin_tab_pdf_offer_titles", "admin_tab_pdf_cover_letters",
     "admin_tab_visualization_settings",
@@ -1805,6 +1820,8 @@ def render_admin_panel(
         "admin_tab_company_management_new": lambda: render_company_crud_tab(db_list_companies_func, db_add_company_func, db_get_company_by_id_func, db_update_company_func, db_delete_company_func, db_set_default_company_func, load_admin_setting_func, save_admin_setting_func, db_add_company_document_func, db_list_company_documents_func, db_delete_company_document_func),
         "admin_tab_product_management": lambda: render_product_management(list_products_func, add_product_func, update_product_func, delete_product_func, get_product_by_id_func, list_product_categories_func, get_product_by_model_name_func),
         "admin_tab_logo_management": lambda: render_logo_management_tab(),
+        "admin_tab_product_database_crud": lambda: render_product_admin_ui(),
+        "admin_tab_brand_logo_crud": lambda: render_brand_logo_admin_ui(),
         "admin_tab_general_settings": lambda: render_general_settings_extended(load_admin_setting_func, save_admin_setting_func),
         "admin_tab_price_matrix": lambda: render_price_matrix(load_admin_setting_func, save_admin_setting_func, _parse_price_matrix_csv_safe, _parse_price_matrix_excel_func),
         "admin_tab_tariff_management": lambda: render_tariff_management(load_admin_setting_func, save_admin_setting_func),
