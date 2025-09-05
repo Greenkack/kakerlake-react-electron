@@ -10,13 +10,45 @@ interface SolarConfig {
   moduleQty: number;
   moduleBrand: string;
   moduleModel: string;
+  moduleProductId: number;
   invBrand: string;
   invModel: string;
+  invProductId: number;
   invQty: number;
   withStorage: boolean;
   storageBrand: string;
   storageModel: string;
+  storageProductId: number;
   storageDesiredKWh: number;
+  
+  // Zusätzliche Komponenten
+  additionalComponents: boolean;
+  wallboxEnabled: boolean;
+  wallboxBrand: string;
+  wallboxModel: string;
+  wallboxProductId: number;
+  emsEnabled: boolean;
+  emsBrand: string;
+  emsModel: string;
+  emsProductId: number;
+  optimizerEnabled: boolean;
+  optimizerBrand: string;
+  optimizerModel: string;
+  optimizerProductId: number;
+  optimizerQty: number;
+  carportEnabled: boolean;
+  carportBrand: string;
+  carportModel: string;
+  carportProductId: number;
+  emergencyPowerEnabled: boolean;
+  emergencyPowerBrand: string;
+  emergencyPowerModel: string;
+  emergencyPowerProductId: number;
+  animalProtectionEnabled: boolean;
+  animalProtectionBrand: string;
+  animalProtectionModel: string;
+  animalProtectionProductId: number;
+  
   otherComponentNote: string;
 }
 
@@ -75,6 +107,14 @@ export default function SolarCalculator(): JSX.Element {
   const { state: projectState } = useProject();
   const { modules: moduleProducts, inverters, storages } = useProducts();
 
+  // State für zusätzliche Komponenten
+  const [wallboxProducts, setWallboxProducts] = useState<Product[]>([]);
+  const [emsProducts, setEmsProducts] = useState<Product[]>([]);
+  const [optimizerProducts, setOptimizerProducts] = useState<Product[]>([]);
+  const [carportProducts, setCarportProducts] = useState<Product[]>([]);
+  const [emergencyPowerProducts, setEmergencyPowerProducts] = useState<Product[]>([]);
+  const [animalProtectionProducts, setAnimalProtectionProducts] = useState<Product[]>([]);
+
   // Schritt-Logik (2 Seiten: Technik Kern / Zusatz folgt später)
   const [step, setStep] = useState<number>(1);
 
@@ -83,13 +123,45 @@ export default function SolarCalculator(): JSX.Element {
     moduleQty: 20,
     moduleBrand: 'ViessmannPV',
     moduleModel: 'Vitovolt 300-DG M440HC',
+    moduleProductId: 0,
     invBrand: '',
     invModel: '',
+    invProductId: 0,
     invQty: 1,
     withStorage: false,
     storageBrand: '',
     storageModel: '',
+    storageProductId: 0,
     storageDesiredKWh: 0,
+    
+    // Zusätzliche Komponenten
+    additionalComponents: false,
+    wallboxEnabled: false,
+    wallboxBrand: '',
+    wallboxModel: '',
+    wallboxProductId: 0,
+    emsEnabled: false,
+    emsBrand: '',
+    emsModel: '',
+    emsProductId: 0,
+    optimizerEnabled: false,
+    optimizerBrand: '',
+    optimizerModel: '',
+    optimizerProductId: 0,
+    optimizerQty: 1,
+    carportEnabled: false,
+    carportBrand: '',
+    carportModel: '',
+    carportProductId: 0,
+    emergencyPowerEnabled: false,
+    emergencyPowerBrand: '',
+    emergencyPowerModel: '',
+    emergencyPowerProductId: 0,
+    animalProtectionEnabled: false,
+    animalProtectionBrand: '',
+    animalProtectionModel: '',
+    animalProtectionProductId: 0,
+    
     otherComponentNote: '',
   }));
 
@@ -119,6 +191,76 @@ export default function SolarCalculator(): JSX.Element {
     }
   }, [suggestions.moduleQty, config.moduleQty]);
 
+  // Lade zusätzliche Komponenten per Python Bridge
+  useEffect(() => {
+    async function loadAdditionalComponents() {
+      if (!config.additionalComponents) return;
+
+      try {
+        // Wallbox
+        if (config.wallboxEnabled && wallboxProducts.length === 0) {
+          const response = await fetch('/api/solar-calculator/manufacturers/wallbox');
+          if (response.ok) {
+            const data = await response.json();
+            setWallboxProducts(data.products || []);
+          }
+        }
+
+        // EMS
+        if (config.emsEnabled && emsProducts.length === 0) {
+          const response = await fetch('/api/solar-calculator/manufacturers/ems');
+          if (response.ok) {
+            const data = await response.json();
+            setEmsProducts(data.products || []);
+          }
+        }
+
+        // Optimizer
+        if (config.optimizerEnabled && optimizerProducts.length === 0) {
+          const response = await fetch('/api/solar-calculator/manufacturers/optimizers');
+          if (response.ok) {
+            const data = await response.json();
+            setOptimizerProducts(data.products || []);
+          }
+        }
+
+        // Carport
+        if (config.carportEnabled && carportProducts.length === 0) {
+          const response = await fetch('/api/solar-calculator/manufacturers/carports');
+          if (response.ok) {
+            const data = await response.json();
+            setCarportProducts(data.products || []);
+          }
+        }
+
+        // Emergency Power
+        if (config.emergencyPowerEnabled && emergencyPowerProducts.length === 0) {
+          const response = await fetch('/api/solar-calculator/manufacturers/emergency_power');
+          if (response.ok) {
+            const data = await response.json();
+            setEmergencyPowerProducts(data.products || []);
+          }
+        }
+
+        // Animal Protection
+        if (config.animalProtectionEnabled && animalProtectionProducts.length === 0) {
+          const response = await fetch('/api/solar-calculator/manufacturers/animal_protection');
+          if (response.ok) {
+            const data = await response.json();
+            setAnimalProtectionProducts(data.products || []);
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der zusätzlichen Komponenten:', error);
+      }
+    }
+
+    loadAdditionalComponents();
+  }, [config.additionalComponents, config.wallboxEnabled, config.emsEnabled, config.optimizerEnabled, 
+      config.carportEnabled, config.emergencyPowerEnabled, config.animalProtectionEnabled,
+      wallboxProducts.length, emsProducts.length, optimizerProducts.length, carportProducts.length,
+      emergencyPowerProducts.length, animalProtectionProducts.length]);
+
   // Ableitungen
   const filteredModuleModels = moduleProducts.filter(p => !config.moduleBrand || p.brand === config.moduleBrand);
   const currentModule = filteredModuleModels.find(p => p.model === config.moduleModel);
@@ -128,6 +270,14 @@ export default function SolarCalculator(): JSX.Element {
   const inverterBrands = Array.from(new Set(inverters.map(p => p.brand))).sort();
   const moduleBrands = Array.from(new Set(moduleProducts.map(p => p.brand))).sort();
   const storageBrands = Array.from(new Set(storages.map(p => p.brand))).sort();
+  
+  // Brands für zusätzliche Komponenten
+  const wallboxBrands = Array.from(new Set(wallboxProducts.map((p: Product) => p.brand))).sort();
+  const emsBrands = Array.from(new Set(emsProducts.map((p: Product) => p.brand))).sort();
+  const optimizerBrands = Array.from(new Set(optimizerProducts.map((p: Product) => p.brand))).sort();
+  const carportBrands = Array.from(new Set(carportProducts.map((p: Product) => p.brand))).sort();
+  const emergencyPowerBrands = Array.from(new Set(emergencyPowerProducts.map((p: Product) => p.brand))).sort();
+  const animalProtectionBrands = Array.from(new Set(animalProtectionProducts.map((p: Product) => p.brand))).sort();
 
   const filteredInvModels = inverters.filter(p => !config.invBrand || p.brand === config.invBrand);
   const currentInv = filteredInvModels.find(p => p.model === config.invModel);
@@ -136,25 +286,58 @@ export default function SolarCalculator(): JSX.Element {
   const filteredStorageModels = storages.filter(p => !config.storageBrand || p.brand === config.storageBrand);
   const currentStorage = filteredStorageModels.find(p => p.model === config.storageModel);
   const storageModelKWh = currentStorage?.storage_kwh || 0;
+  
+  // Filtered Models für zusätzliche Komponenten
+  const wallboxModels = wallboxProducts.filter((p: Product) => !config.wallboxBrand || p.brand === config.wallboxBrand);
+  const emsModels = emsProducts.filter((p: Product) => !config.emsBrand || p.brand === config.emsBrand);
+  const optimizerModels = optimizerProducts.filter((p: Product) => !config.optimizerBrand || p.brand === config.optimizerBrand);
+  const carportModels = carportProducts.filter((p: Product) => !config.carportBrand || p.brand === config.carportBrand);
+  const emergencyPowerModels = emergencyPowerProducts.filter((p: Product) => !config.emergencyPowerBrand || p.brand === config.emergencyPowerBrand);
+  const animalProtectionModels = animalProtectionProducts.filter((p: Product) => !config.animalProtectionBrand || p.brand === config.animalProtectionBrand);
 
   // Validierung Kernschritt
   const errors: string[] = [];
   if (step === 1) {
     if (config.moduleQty <= 0) errors.push('Anzahl Module > 0 erforderlich');
     if (!config.moduleModel) errors.push('Modul-Modell wählen');
+    if (!config.invModel) errors.push('Wechselrichter-Modell wählen');
+    if (config.invQty <= 0) errors.push('Anzahl Wechselrichter > 0 erforderlich');
+    if (config.withStorage && !config.storageModel) errors.push('Speicher-Modell wählen (wenn Speicher aktiviert)');
+  }
+  
+  if (step === 2 && config.additionalComponents) {
+    if (config.wallboxEnabled && !config.wallboxModel) errors.push('Wallbox-Modell wählen');
+    if (config.emsEnabled && !config.emsModel) errors.push('EMS-Modell wählen');
+    if (config.optimizerEnabled && !config.optimizerModel) errors.push('Optimizer-Modell wählen');
+    if (config.carportEnabled && !config.carportModel) errors.push('Carport-Modell wählen');
+    if (config.emergencyPowerEnabled && !config.emergencyPowerModel) errors.push('Notstrom-Modell wählen');
+    if (config.animalProtectionEnabled && !config.animalProtectionModel) errors.push('Tierabwehr-Modell wählen');
   }
 
   function goNext() {
-    if (step === 1) {
-      if (errors.length === 0) setStep(2);
-      return;
+    if (errors.length === 0) {
+      if (step === 1) setStep(2);
+      // Schritt 2 ist letzter Schritt, führt direkt zu finishAndBack
     }
   }
 
-  function finishAndBack() {
-    // @todo: Später Config in projektContext speichern oder Backend übertragen
-    console.log('Solar Configuration:', config);
-    navigate('/results'); // Direkt zu Ergebnissen statt Menu
+  async function finishAndBack() {
+    try {
+      // Konfiguration im Backend speichern
+      const response = await fetch('/api/solar-calculator/save-configuration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      
+      if (!response.ok) throw new Error('Fehler beim Speichern der Konfiguration');
+      
+      console.log('Solar Configuration gespeichert:', config);
+      navigate('/results'); // Zu Ergebnissen navigieren
+    } catch (error) {
+      console.error('Speicherfehler:', error);
+      alert('Konfiguration konnte nicht gespeichert werden');
+    }
   }
 
   return (
@@ -308,7 +491,263 @@ export default function SolarCalculator(): JSX.Element {
 
       {step === 2 && (
         <section className="rounded-xl bg-white p-5 shadow space-y-6">
-          <h2 className="text-lg font-semibold">Zusätzliche Komponenten (demnächst)</h2>
+          <h2 className="text-lg font-semibold">Zusätzliche Komponenten</h2>
+          
+          {/* Zusätzliche Komponenten aktivieren */}
+          <div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={config.additionalComponents}
+                onChange={e => setConfig(prev => ({...prev, additionalComponents: e.target.checked}))}
+              />
+              <span>Zusätzliche Komponenten hinzufügen</span>
+            </label>
+          </div>
+
+          {config.additionalComponents && (
+            <div className="space-y-6">
+              {/* Wallbox */}
+              <div className="border rounded p-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config.wallboxEnabled}
+                    onChange={e => setConfig(prev => ({...prev, wallboxEnabled: e.target.checked}))}
+                  />
+                  <span className="font-medium">Wallbox</span>
+                </label>
+                {config.wallboxEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 ml-6">
+                    <div>
+                      <label className="block text-sm mb-1">Hersteller</label>
+                      <select
+                        value={config.wallboxBrand}
+                        onChange={e => setConfig(prev => ({...prev, wallboxBrand: e.target.value, wallboxModel: ''}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {wallboxBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Modell</label>
+                      <select
+                        value={config.wallboxModel}
+                        onChange={e => setConfig(prev => ({...prev, wallboxModel: e.target.value}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {wallboxModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* EMS */}
+              <div className="border rounded p-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config.emsEnabled}
+                    onChange={e => setConfig(prev => ({...prev, emsEnabled: e.target.checked}))}
+                  />
+                  <span className="font-medium">Energie Management System (EMS)</span>
+                </label>
+                {config.emsEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 ml-6">
+                    <div>
+                      <label className="block text-sm mb-1">Hersteller</label>
+                      <select
+                        value={config.emsBrand}
+                        onChange={e => setConfig(prev => ({...prev, emsBrand: e.target.value, emsModel: ''}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {emsBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Modell</label>
+                      <select
+                        value={config.emsModel}
+                        onChange={e => setConfig(prev => ({...prev, emsModel: e.target.value}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {emsModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Optimizer */}
+              <div className="border rounded p-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config.optimizerEnabled}
+                    onChange={e => setConfig(prev => ({...prev, optimizerEnabled: e.target.checked}))}
+                  />
+                  <span className="font-medium">Optimizer</span>
+                </label>
+                {config.optimizerEnabled && (
+                  <div className="grid gap-4 md:grid-cols-3 ml-6">
+                    <div>
+                      <label className="block text-sm mb-1">Hersteller</label>
+                      <select
+                        value={config.optimizerBrand}
+                        onChange={e => setConfig(prev => ({...prev, optimizerBrand: e.target.value, optimizerModel: ''}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {optimizerBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Modell</label>
+                      <select
+                        value={config.optimizerModel}
+                        onChange={e => setConfig(prev => ({...prev, optimizerModel: e.target.value}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {optimizerModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Anzahl</label>
+                      <input
+                        type="number"
+                        value={config.optimizerQty}
+                        onChange={e => setConfig(prev => ({...prev, optimizerQty: parseInt(e.target.value || '0', 10)}))}
+                        className="w-full rounded border px-3 py-2"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Carport */}
+              <div className="border rounded p-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config.carportEnabled}
+                    onChange={e => setConfig(prev => ({...prev, carportEnabled: e.target.checked}))}
+                  />
+                  <span className="font-medium">Carport</span>
+                </label>
+                {config.carportEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 ml-6">
+                    <div>
+                      <label className="block text-sm mb-1">Hersteller</label>
+                      <select
+                        value={config.carportBrand}
+                        onChange={e => setConfig(prev => ({...prev, carportBrand: e.target.value, carportModel: ''}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {carportBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Modell</label>
+                      <select
+                        value={config.carportModel}
+                        onChange={e => setConfig(prev => ({...prev, carportModel: e.target.value}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {carportModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Notstrom */}
+              <div className="border rounded p-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config.emergencyPowerEnabled}
+                    onChange={e => setConfig(prev => ({...prev, emergencyPowerEnabled: e.target.checked}))}
+                  />
+                  <span className="font-medium">Notstrom</span>
+                </label>
+                {config.emergencyPowerEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 ml-6">
+                    <div>
+                      <label className="block text-sm mb-1">Hersteller</label>
+                      <select
+                        value={config.emergencyPowerBrand}
+                        onChange={e => setConfig(prev => ({...prev, emergencyPowerBrand: e.target.value, emergencyPowerModel: ''}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {emergencyPowerBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Modell</label>
+                      <select
+                        value={config.emergencyPowerModel}
+                        onChange={e => setConfig(prev => ({...prev, emergencyPowerModel: e.target.value}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {emergencyPowerModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tierabwehr */}
+              <div className="border rounded p-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config.animalProtectionEnabled}
+                    onChange={e => setConfig(prev => ({...prev, animalProtectionEnabled: e.target.checked}))}
+                  />
+                  <span className="font-medium">Tierabwehr</span>
+                </label>
+                {config.animalProtectionEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 ml-6">
+                    <div>
+                      <label className="block text-sm mb-1">Hersteller</label>
+                      <select
+                        value={config.animalProtectionBrand}
+                        onChange={e => setConfig(prev => ({...prev, animalProtectionBrand: e.target.value, animalProtectionModel: ''}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {animalProtectionBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Modell</label>
+                      <select
+                        value={config.animalProtectionModel}
+                        onChange={e => setConfig(prev => ({...prev, animalProtectionModel: e.target.value}))}
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        <option value="">-- wählen --</option>
+                        {animalProtectionModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Freitext */}
           <div>
             <label className="block text-sm mb-1">Sonstiges (frei)</label>
             <input
