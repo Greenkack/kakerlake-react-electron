@@ -522,7 +522,7 @@ export default function NeedsAnalysis() {
       <WizardNav
         backTo="/project/demand"
         nextTo="/project/options"
-        nextDisabled={!requiredOk}
+        disabledNext={!requiredOk}
       />
     </div>
   )

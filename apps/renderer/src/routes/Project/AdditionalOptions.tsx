@@ -583,7 +583,7 @@ export default function AdditionalOptions() {
       <WizardNav
         backTo="/project/needs"
         nextTo="/project/results"
-        nextDisabled={!requiredOk}
+        disabledNext={!requiredOk}
       />
     </div>
   )

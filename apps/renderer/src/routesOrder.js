@@ -32,11 +32,15 @@ export function indexOfRoute(path) {
 }
 export function nextRoute(path) {
     const i = indexOfRoute(path);
-    return i < ROUTE_ORDER.length - 1 ? ROUTE_ORDER[i + 1] : null;
+    const n = i < ROUTE_ORDER.length - 1 ? ROUTE_ORDER[i + 1] : null;
+    console.log('[routesOrder] nextRoute', { path, index: i, next: n });
+    return n;
 }
 export function prevRoute(path) {
     const i = indexOfRoute(path);
-    return i > 0 ? ROUTE_ORDER[i - 1] : null;
+    const p = i > 0 ? ROUTE_ORDER[i - 1] : null;
+    console.log('[routesOrder] prevRoute', { path, index: i, prev: p });
+    return p;
 }
 // Für "Menü"-Button: wohin zurück?
 export function menuRouteFor(path) {
@@ -50,5 +54,6 @@ export function menuRouteFor(path) {
         return "/admin";
     if (path.startsWith("/project"))
         return "/home";
+    console.log('[routesOrder] menuRouteFor fallback /home', { path });
     return "/home";
 }

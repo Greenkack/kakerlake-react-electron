@@ -5,6 +5,7 @@ import WizardNav from "../components/WizardNav";
 import SmartRecommendations from "../components/SmartRecommendations";
 import InteractiveCalculator from "../components/InteractiveCalculator";
 import { calculatePVSystem, type CalculationParams } from "../utils/calculations";
+import { usePvCalculations } from "../utils/pvCalculations";
 import { 
   formatGermanNumber, 
   formatGermanCurrency, 
@@ -15,9 +16,20 @@ import {
   formatGermanPercent 
 } from "../utils/germanFormat";
 
+// Minimal Kpi component for displaying KPIs
+function Kpi({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-lg p-4 text-center border">
+      <div className="text-lg font-bold">{value}</div>
+      <div className="text-xs text-slate-600">{label}</div>
+    </div>
+  );
+}
+
 export default function Results(): JSX.Element {
   const { state } = useProject();
   const { mode, customer: c, building, consumption, options } = state;
+  const { input, results } = usePvCalculations();
 
   // Erweiterte Live-Berechnungen basierend auf den echten eingegebenen Daten
   const calculations = useMemo(() => {
@@ -54,6 +66,8 @@ export default function Results(): JSX.Element {
     return calculatePVSystem(params);
   }, [c.bundesland, building, consumption, options]);
 
+
+  
   return (
     <div className="space-y-6">
       <div className="mb-8">
@@ -101,41 +115,62 @@ export default function Results(): JSX.Element {
             <div className="text-sm text-slate-600">pro Tag</div>
           </div>
         </div>
-        
-        {/* Eigenverbrauch vs. Einspeisung */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <h4 className="font-medium text-slate-700">🏠 Eigenverbrauch</h4>
-            <div className="flex justify-between">
-              <span>Direkt verbraucht:</span>
-              <span className="font-medium">{calculations.breakdown.directConsumption.toLocaleString('de-DE')} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Aus Speicher:</span>
-              <span className="font-medium">{calculations.breakdown.fromBattery.toLocaleString('de-DE')} kWh</span>
-            </div>
-            <div className="flex justify-between font-semibold border-t pt-2">
-              <span>Gesamt ({calculations.selfConsumptionRate.toFixed(1)}%):</span>
-              <span>{calculations.selfConsumption.toLocaleString('de-DE')} kWh</span>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <h4 className="font-medium text-slate-700">🌐 Netzinteraktion</h4>
-            <div className="flex justify-between">
-              <span>Einspeisung:</span>
-              <span className="font-medium">{calculations.feedIn.toLocaleString('de-DE')} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Netzbezug:</span>
-              <span className="font-medium">{calculations.breakdown.fromGrid.toLocaleString('de-DE')} kWh</span>
-            </div>
-            <div className="flex justify-between font-semibold border-t pt-2">
-              <span>Autarkie:</span>
-              <span>{calculations.autarkyRate?.toFixed(1)}%</span>
-            </div>
-          </div>
+
+  <div className="space-y-8">
+      {/* ...existing sections... */}
+
+      <section className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4">Erweiterte Wirtschaftlichkeits-Kennzahlen</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Kpi label="Autarkiegrad" value={formatGermanPercent(results.autarkiegrad_prozent ?? 0)} />
+          <Kpi label="Jährliche Ersparnis" value={formatGermanCurrency(results.jahres_ersparnis_eur ?? 0)} />
+          <Kpi label="Break-Even (Jahr)" value={results.break_even_jahr ?? "—"} />
+          <Kpi label="PV-Strompreis" value={formatGermanNumber(results.pv_strompreis_ct_kwh ?? 0, 2) + " ct/kWh"} />
+          <Kpi label="Speichergrad" value={formatGermanPercent(results.speichergrad_prozent ?? 0)} />
+          <Kpi label="Notstrom Kapazität / Tag" value={formatGermanNumber(results.notstrom_kapazitaet_kwh_tag ?? 0, 2) + " kWh"} />
+          <Kpi label="Restwert nach Laufzeit" value={formatGermanCurrency(results.restwert_nach_laufzeit_eur ?? 0)} />
+          <Kpi label="Inflationsbereinigter Wert (20J)" value={formatGermanCurrency(results.inflationsbereinigter_wert_20a_eur ?? 0)} />
+          <Kpi label="Lineare AfA / Jahr" value={formatGermanCurrency(results.afa_linear_jahr_eur ?? 0)} />
         </div>
       </section>
+
+      {/* ...existing JSX... */}
+    </div>
+  );
+  {/* Eigenverbrauch vs. Einspeisung */}
+  <div className="grid md:grid-cols-2 gap-4">
+    <div className="space-y-3">
+      <h4 className="font-medium text-slate-700">🏠 Eigenverbrauch</h4>
+      <div className="flex justify-between">
+        <span>Direkt verbraucht:</span>
+        <span className="font-medium">{calculations.breakdown.directConsumption.toLocaleString('de-DE')} kWh</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Aus Speicher:</span>
+        <span className="font-medium">{calculations.breakdown.fromBattery.toLocaleString('de-DE')} kWh</span>
+      </div>
+      <div className="flex justify-between font-semibold border-t pt-2">
+        <span>Gesamt ({calculations.selfConsumptionRate.toFixed(1)}%):</span>
+        <span>{calculations.selfConsumption.toLocaleString('de-DE')} kWh</span>
+      </div>
+    </div>
+    <div className="space-y-3">
+      <h4 className="font-medium text-slate-700">🌐 Netzinteraktion</h4>
+      <div className="flex justify-between">
+        <span>Einspeisung:</span>
+        <span className="font-medium">{calculations.feedIn.toLocaleString('de-DE')} kWh</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Netzbezug:</span>
+        <span className="font-medium">{calculations.breakdown.fromGrid.toLocaleString('de-DE')} kWh</span>
+      </div>
+      <div className="flex justify-between font-semibold border-t pt-2">
+        <span>Autarkie:</span>
+        <span>{calculations.autarkyRate?.toFixed(1)}%</span>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* Wirtschaftlichkeit */}
       <section className="rounded-xl bg-gradient-to-r from-green-50 to-yellow-50 border border-green-200 p-6 shadow">

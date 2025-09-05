@@ -244,7 +244,7 @@ export default function CustomerForm(): JSX.Element {
       <WizardNav
         backTo="/project/mode"
         nextTo="/project/demand"
-        nextDisabled={!requiredOk}
+        disabledNext={!requiredOk}
         showHome={true}
       />
     </div>

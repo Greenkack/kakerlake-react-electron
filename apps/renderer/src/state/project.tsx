@@ -30,6 +30,7 @@ export interface Customer {
 }
 
 export interface BuildingData {
+  irradiationKWhPerKwp(irradiationKWhPerKwp: any, arg1: number): number | undefined;
   buildingType?: string;
   roofType?: string;
   roofOrientation?: string;
@@ -44,6 +45,8 @@ export interface BuildingData {
 }
 
 export interface ConsumptionData {
+  weightedTarifEURPerKWh(weightedTarifEURPerKWh: any, arg1: number): number;
+  heatingAnnualKWh(heatingAnnualKWh: any): number | undefined;
   annualKWhHousehold?: number;
   monthlyCostHouseholdEuro?: number;
   annualKWhHeating?: number;
@@ -76,6 +79,24 @@ export interface ConsumptionData {
 }
 
 export interface ProjectOptions {
+  annualYieldKWh(annualYieldKWh: any): unknown;
+  systemSizeKWp(systemSizeKWp: any): unknown;
+  selfConsumptionKWh(selfConsumptionKWh: any): number;
+  investmentTotal(investmentTotal: any): number;
+  feedInTarifEurPerKWh(feedInTarifEurPerKWh: any, arg1: number): number | undefined;
+  batteryCapacityKWh(batteryCapacityKWh: any): number | undefined;
+  batteryUsableFactor(batteryUsableFactor: any, arg1: number): number | undefined;
+  subsidyTotal(subsidyTotal: any): number | undefined;
+  financeInterestRate(financeInterestRate: any, arg1: number): number | undefined;
+  inflationRate // Installation
+      (inflationRate: any, arg1: number): number | undefined;
+  analysisYears(analysisYears: any, arg1: number): number | undefined;
+  // Erweiterungen
+  depreciationYears(depreciationYears: any, arg1: number): number | undefined;
+  selfConsumptionRatePct(selfConsumptionRatePct: any): unknown;
+  calculatedEigenverbrauchKWh(calculatedEigenverbrauchKWh: any): unknown;
+  batteryCycleLife(batteryCycleLife: any, arg1: number): number | undefined;
+  batteryCyclesPerYear(batteryCyclesPerYear: any, arg1: number): number | undefined;
   // PV System
   pv_interest?: boolean;
   system_size_preference?: string;
@@ -170,9 +191,68 @@ const defaultCustomer: Customer = {
 const defaultState: ProjectState = {
   mode: null,
   customer: defaultCustomer,
-  building: {},
-  consumption: {},
-  options: {},
+  building: {
+    irradiationKWhPerKwp: function(irradiationKWhPerKwp: any, arg1: number): number | undefined {
+      throw new Error("Function not implemented.");
+    }
+  },
+  consumption: {
+      weightedTarifEURPerKWh: function(weightedTarifEURPerKWh: any, arg1: number): number {
+          throw new Error("Function not implemented.");
+      },
+      heatingAnnualKWh: function(heatingAnnualKWh: any): number | undefined {
+          throw new Error("Function not implemented.");
+      }
+  },
+  options: {
+    annualYieldKWh: function(annualYieldKWh: any): unknown { return undefined; },
+    systemSizeKWp: function(systemSizeKWp: any): unknown { return undefined; },
+    selfConsumptionKWh: function(selfConsumptionKWh: any): number { return 0; },
+    investmentTotal: function(investmentTotal: any): number { return 0; },
+    feedInTarifEurPerKWh: function(feedInTarifEurPerKWh: any, arg1: number): number | undefined { return undefined; },
+    batteryCapacityKWh: function(batteryCapacityKWh: any): number | undefined { return undefined; },
+    batteryUsableFactor: function(batteryUsableFactor: any, arg1: number): number | undefined { return undefined; },
+    subsidyTotal: function(subsidyTotal: any): number | undefined { return undefined; },
+    financeInterestRate: function(financeInterestRate: any, arg1: number): number | undefined { return undefined; },
+    inflationRate: function(inflationRate: any, arg1: number): number | undefined { return undefined; },
+    analysisYears: function(analysisYears: any, arg1: number): number | undefined { return undefined; },
+    depreciationYears: function(depreciationYears: any, arg1: number): number | undefined { return undefined; },
+    selfConsumptionRatePct: function(selfConsumptionRatePct: any): unknown { return undefined; },
+    calculatedEigenverbrauchKWh: function(calculatedEigenverbrauchKWh: any): unknown { return undefined; },
+    batteryCycleLife: function(batteryCycleLife: any, arg1: number): number | undefined { return undefined; },
+    batteryCyclesPerYear: function(batteryCyclesPerYear: any, arg1: number): number | undefined { return undefined; },
+    // Optional fields below
+    pv_interest: undefined,
+    system_size_preference: undefined,
+    module_type_preference: undefined,
+    inverter_type_preference: undefined,
+    mounting_preference: undefined,
+    battery_interest: undefined,
+    battery_size_preference: undefined,
+    battery_type_preference: undefined,
+    backup_power_desired: undefined,
+    hp_interest: undefined,
+    hp_type_preference: undefined,
+    hp_size_preference: undefined,
+    hp_integration_timing: undefined,
+    ev_charging_interest: undefined,
+    wallbox_type_preference: undefined,
+    ev_integration_timing: undefined,
+    smart_home_integration: undefined,
+    monitoring_level_preference: undefined,
+    app_control_desired: undefined,
+    maintenance_contract_interest: undefined,
+    insurance_interest: undefined,
+    financing_interest: undefined,
+    leasing_interest: undefined,
+    installation_speed_preference: undefined,
+    installation_team_size: undefined,
+    future_expansion_planned: undefined,
+    pool_heating_interest: undefined,
+    climate_control_interest: undefined,
+    special_requests: undefined,
+    consultation_preference: undefined,
+  },
 };
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {

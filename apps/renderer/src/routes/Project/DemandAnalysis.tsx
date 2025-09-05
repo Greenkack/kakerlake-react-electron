@@ -456,7 +456,7 @@ export default function DemandAnalysis() {
       <WizardNav
         backTo="/project/building"
         nextTo="/project/needs"
-        nextDisabled={!requiredOk}
+        disabledNext={!requiredOk}
       />
     </div>
   )

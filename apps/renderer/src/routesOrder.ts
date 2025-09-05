@@ -12,6 +12,10 @@ export const ROUTE_ORDER = [
   "/results",         // Ergebnisse der Analyse
   "/dashboard",       // Dashboard
   "/documents",       // Dokumentenerstellung
+  "/project/mode",
+  "/project/demand",
+  "/project/needs",
+  "/project/results",
 
   "/crm/menu",        // CRM Hauptmenü (Platzhalter)
   "/planning/menu",   // Planungen (Platzhalter)
@@ -41,5 +45,6 @@ export function menuRouteFor(path: string): string {
   if (path.startsWith("/crm")) return "/crm/menu";
   if (path.startsWith("/planning")) return "/planning/menu";
   if (path.startsWith("/admin")) return "/admin/login";
+  if (path.startsWith("/project")) return "/home";
   return "/";
 }

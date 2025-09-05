@@ -66,7 +66,7 @@ export default function ModeSelect(): JSX.Element {
       <WizardNav
         backTo={undefined}
         nextTo="/project/customer"
-        nextDisabled={!mode}
+        disabledNext={!mode}
         showHome={false}
       />
     </div>

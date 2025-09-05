@@ -50,6 +50,10 @@ function ProjectHeader() {
   );
 }
 
+// NOTE: Avoid importing with explicit .js extensions for TSX modules.
+// Legacy build artefacts (.js) previously caused duplicated component logic and render loops.
+// Ensure any dynamic loaders or Electron preload scripts reference extension-less paths.
+
 export default function ProjectWizard(): JSX.Element {
   return (
     <ProjectProvider>
@@ -58,7 +62,7 @@ export default function ProjectWizard(): JSX.Element {
           {/* Header mit Home-Button und Clear-Button */}
           <ProjectHeader />
           
-          <div className="container mx-auto max-w-4xl px-4 py-8">
+          <div className="container mx-auto max-w-4xl px-4 py-8 pb-24">
             <Routes>
               {/* Projekt-Startseite -> Mode Selection */}
               <Route index element={<Navigate to="mode" replace />} />

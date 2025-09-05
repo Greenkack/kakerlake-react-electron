@@ -1,60 +1,70 @@
 // apps/renderer/src/components/WizardNav.tsx
-import React from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
-type Props = {
+interface WizardNavProps {
   backTo?: string;
   nextTo?: string;
-  nextDisabled?: boolean;
-  showHome?: boolean; // "Zum Hauptmenü (Anlagenmodus)"
-};
+  disabledNext?: boolean;
+  showHome?: boolean;
+  labelNext?: string;
+  labelBack?: string;
+}
 
 export default function WizardNav({
   backTo,
   nextTo,
-  nextDisabled,
-  showHome = true,
-}: Props) {
-  const nav = useNavigate();
+  disabledNext,
+  showHome,
+  labelNext = "Nächster Bereich",
+  labelBack = "Zurück"
+}: WizardNavProps) {
+  const navigate = useNavigate();
+  const clickingRef = useRef(false);
+
+  const safeNav = (target?: string) => {
+    if (!target) return;
+    if (clickingRef.current) return;
+    clickingRef.current = true;
+    // minimal Delay um doppelte Effekte zu vermeiden
+    requestAnimationFrame(() => {
+      console.log("[WizardNav] navigate ->", target);
+      navigate(target);
+      setTimeout(() => { clickingRef.current = false; }, 150);
+    });
+  };
 
   return (
-    <div className="mt-6 flex flex-wrap gap-2">
-      {backTo ? (
-        <Link to={backTo} className="rounded border bg-white px-4 py-2 hover:bg-slate-50">
-          Zurück
-        </Link>
-      ) : (
+    <div className="mt-8 flex flex-wrap gap-3 justify-between items-center border-t pt-4">
+      <div className="flex gap-3">
         <button
-          onClick={() => nav(-1)}
-          className="rounded border bg-white px-4 py-2 hover:bg-slate-50"
+          type="button"
+          disabled={!backTo}
+          onClick={() => safeNav(backTo)}
+          className="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-40 text-sm font-medium"
         >
-          Zurück
+          ← {labelBack}
         </button>
-      )}
-
-      {showHome && (
-        <Link
-          to="/home"
-          className="rounded border bg-white px-4 py-2 hover:bg-slate-50"
+        {showHome && (
+          <button
+            type="button"
+            onClick={() => safeNav("/home")}
+            className="px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium"
+          >
+            🏠 Start
+          </button>
+        )}
+      </div>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          disabled={!nextTo || disabledNext}
+          onClick={() => safeNav(nextTo)}
+          className="px-5 py-2 rounded bg-green-500 hover:bg-green-600 text-white text-sm font-semibold disabled:opacity-40"
         >
-          Zum Hauptmenü
-        </Link>
-      )}
-
-      {nextTo && (
-        <Link
-          to={nextTo}
-          className={
-            "rounded px-4 py-2 text-white " +
-            (nextDisabled ? "bg-slate-300 cursor-not-allowed" : "bg-cyan-600 hover:bg-cyan-700")
-          }
-          onClick={(e) => {
-            if (nextDisabled) e.preventDefault();
-          }}
-        >
-          Nächster Bereich
-        </Link>
-      )}
+          {labelNext} →
+        </button>
+      </div>
     </div>
   );
 }
