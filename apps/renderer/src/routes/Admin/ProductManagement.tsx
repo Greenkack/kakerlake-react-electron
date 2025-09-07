@@ -1,498 +1,559 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { formatGermanNumber, formatGermanCurrency } from '../../utils/germanFormat'
+import React, { useState, useEffect, useCallback } from 'react';
 
-// Kanonisches Produkt gemäß Vorgabe (deutsche Keys)
-interface ProduktStd {
-  id: number
-  kategorie: string
-  produkt_modell: string
-  hersteller: string
-  preis_stück?: number
-  pv_modul_leistung?: number
-  kapazitaet_speicher_kwh?: number
-  wr_leistung_kw?: number
-  ladezyklen_speicher?: number
-  garantie_zeit?: number
-  mass_laenge?: number
-  mass_breite?: number
-  mass_gewicht_kg?: number
-  wirkungsgrad_prozent?: number
-  hersteller_land?: string
-  beschreibung_info?: string
-  eigenschaft_info?: string
-  spezial_merkmal?: string
-  rating_null_zehn?: number
-  image_base64?: string | null
-  created_at?: string | null
-  updated_at?: string | null
+interface Product {
+  id?: number;
+  category?: string;
+  model_name?: string;
+  brand?: string;
+  price_euro?: number;
+  capacity_w?: number | null;
+  storage_power_kw?: number | null;
+  power_kw?: number | null;
+  max_cycles?: number | null;
+  warranty_years?: number;
+  length_m?: number | null;
+  width_m?: number | null;
+  weight_kg?: number | null;
+  efficiency_percent?: number | null;
+  origin_country?: string;
+  description?: string;
+  pros?: string;
+  cons?: string;
+  rating?: number | null;
+  image_base64?: string;
+  datasheet_link_db_path?: string;
+  additional_cost_netto?: number;
+  company_id?: number | null;
+  cell_technology?: string;
+  module_structure?: string;
+  cell_type?: string;
+  version?: string;
+  module_warranty_text?: string;
+  labor_hours?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
-async function loadProducts(): Promise<ProduktStd[]> {
-  const api = (window as any).productsAPI
-  if (!api) return []
-  try {
-    const res = await api.list()
-    if (res?.success && Array.isArray(res.items)) return res.items
-  } catch (e) {
-    console.error('Produkte laden fehlgeschlagen', e)
-  }
-  return []
+interface ProductFormData extends Omit<Product, 'id' | 'created_at' | 'updated_at'> {
+  id?: number;
 }
 
-const categoryLabels = {
-  module: 'PV-Module',
-  inverter: 'Wechselrichter',
-  battery: 'Batteriespeicher',
-  wallbox: 'Wallboxen',
-  mounting: 'Montagesysteme',
-  cable: 'Kabel & Zubehör'
-}
+type ProductCategory = 'Modul' | 'Wechselrichter' | 'Batteriespeicher' | 'Wallbox' | 'Zubehör' | 'Sonstiges';
 
-const availabilityLabels = {
-  in_stock: 'Auf Lager',
-  limited: 'Begrenzt',
-  out_of_stock: 'Nicht verfügbar',
-  discontinued: 'Eingestellt'
-}
+const PRODUCT_CATEGORIES: ProductCategory[] = [
+  'Modul',
+  'Wechselrichter', 
+  'Batteriespeicher',
+  'Wallbox',
+  'Zubehör',
+  'Sonstiges'
+];
 
-const availabilityColors = {
-  in_stock: 'bg-green-100 text-green-800',
-  limited: 'bg-yellow-100 text-yellow-800',
-  out_of_stock: 'bg-red-100 text-red-800',
-  discontinued: 'bg-gray-100 text-gray-800'
-}
+export default function ProductManagement(): JSX.Element {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductFormData | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [filterCategory, setFilterCategory] = useState<string>('Alle Kategorien');
+  const [searchText, setSearchText] = useState('');
 
-export default function ProductManagement() {
-  const [products, setProducts] = useState<ProduktStd[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState<'produkt_modell' | 'hersteller' | 'preis' | 'leistung'>('produkt_modell')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
-  const [loading, setLoading] = useState(false)
-  const [showAdd, setShowAdd] = useState(false)
-  const [newProduct, setNewProduct] = useState({
-    kategorie: '', hersteller: '', produkt_modell: '', preis_stück: '',
-    pv_modul_leistung: '', wr_leistung_kw: '', kapazitaet_speicher_kwh: ''
-  } as Record<string, string>)
+  // Form state
+  const [formData, setFormData] = useState<ProductFormData>({
+    category: 'Modul',
+    model_name: '',
+    brand: '',
+    price_euro: 0,
+    capacity_w: null,
+    storage_power_kw: null,
+    power_kw: null,
+    max_cycles: null,
+    warranty_years: 0,
+    length_m: null,
+    width_m: null,
+    weight_kg: null,
+    efficiency_percent: null,
+    origin_country: '',
+    description: '',
+    pros: '',
+    cons: '',
+    rating: null,
+    image_base64: '',
+    datasheet_link_db_path: '',
+    additional_cost_netto: 0,
+    company_id: null,
+    cell_technology: '',
+    module_structure: '',
+    cell_type: '',
+    version: '',
+    module_warranty_text: '',
+    labor_hours: null
+  });
+
+  const loadProducts = useCallback(async (category?: string) => {
+    setLoading(true);
+    try {
+      const result = await (window as any).api?.product?.listProducts(category || null);
+      setProducts(result || []);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let mounted = true
-    setLoading(true)
-    loadProducts().then(items => {
-      if (!mounted) return
-      setProducts(items as ProduktStd[])
-      setLoading(false)
-    })
-    return () => { mounted = false }
-  }, [])
+    loadProducts();
+  }, [loadProducts]);
 
-  const filteredAndSortedProducts = useMemo(() => {
-    const search = searchTerm.toLowerCase()
-    let filtered = products.filter(p => {
-      const matchesCategory = selectedCategory === 'all' || p.kategorie === selectedCategory
-      const matchesSearch = (
-        (p.produkt_modell || '').toLowerCase().includes(search) ||
-        (p.hersteller || '').toLowerCase().includes(search) ||
-        (p.beschreibung_info || '').toLowerCase().includes(search)
-      )
-      return matchesCategory && matchesSearch
-    })
+  const handleFormChange = (field: keyof ProductFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
-    return filtered.sort((a, b) => {
-      let aValue: any
-      let bValue: any
-      if (sortBy === 'produkt_modell') {
-        aValue = (a.produkt_modell || '').toLowerCase()
-        bValue = (b.produkt_modell || '').toLowerCase()
-      } else if (sortBy === 'hersteller') {
-        aValue = (a.hersteller || '').toLowerCase()
-        bValue = (b.hersteller || '').toLowerCase()
-      } else if (sortBy === 'preis') {
-        aValue = a.preis_stück ?? 0
-        bValue = b.preis_stück ?? 0
-      } else {
-        // leistung: priorisiere pv_modul_leistung, sonst wr_leistung_kw (in kW -> Wp nicht gemischt), dann kapazitaet_speicher_kwh
-        aValue = a.pv_modul_leistung ?? a.wr_leistung_kw ?? a.kapazitaet_speicher_kwh ?? 0
-        bValue = b.pv_modul_leistung ?? b.wr_leistung_kw ?? b.kapazitaet_speicher_kwh ?? 0
-      }
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
-  }, [products, selectedCategory, searchTerm, sortBy, sortOrder])
-
-  const handleSort = (field: typeof sortBy) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortOrder('asc')
+  const handleImageUpload = async (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Datei zu groß! Maximum 2MB');
+      return;
     }
-  }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      // Remove data:image/...;base64, prefix
+      const base64Data = base64.split(',')[1];
+      handleFormChange('image_base64', base64Data);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    
+    setLoading(true);
+    try {
+      const fileBuffer = await file.arrayBuffer();
+      const result = await (window as any).api?.product?.bulkImportProducts({
+        filename: file.name,
+        data: Array.from(new Uint8Array(fileBuffer)),
+        type: file.name.endsWith('.xlsx') ? 'xlsx' : 'csv'
+      });
+      
+      if (result?.success) {
+        alert(`Import erfolgreich! ${result.imported} neue Produkte, ${result.updated} aktualisiert, ${result.skipped} übersprungen`);
+        await loadProducts();
+        setUploadFile(null);
+      } else {
+        alert(`Import Fehler: ${result?.message || 'Unbekannter Fehler'}`);
+      }
+    } catch (error) {
+      console.error('File upload failed:', error);
+      alert('Datei-Upload fehlgeschlagen');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.model_name?.trim() || !formData.category) {
+      alert('Modellname und Kategorie sind Pflichtfelder!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (editingProduct?.id) {
+        // Update existing product
+        const success = await (window as any).api?.product?.updateProduct(editingProduct.id, formData);
+        if (success) {
+          alert('Produkt erfolgreich aktualisiert!');
+        } else {
+          alert('Fehler beim Aktualisieren des Produkts');
+        }
+      } else {
+        // Add new product
+        const id = await (window as any).api?.product?.addProduct(formData);
+        if (id) {
+          alert('Produkt erfolgreich hinzugefügt!');
+        } else {
+          alert('Fehler beim Hinzufügen des Produkts');
+        }
+      }
+      
+      // Reset form and reload
+      resetForm();
+      await loadProducts();
+    } catch (error) {
+      console.error('Submit failed:', error);
+      alert('Fehler beim Speichern des Produkts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({ ...product });
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Produkt wirklich löschen?')) return;
+    
+    setLoading(true);
+    try {
+      const success = await (window as any).api?.product?.deleteProduct(id);
+      if (success) {
+        alert('Produkt erfolgreich gelöscht!');
+        await loadProducts();
+      } else {
+        alert('Fehler beim Löschen des Produkts');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Fehler beim Löschen des Produkts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      category: 'Modul',
+      model_name: '',
+      brand: '',
+      price_euro: 0,
+      capacity_w: null,
+      storage_power_kw: null,
+      power_kw: null,
+      max_cycles: null,
+      warranty_years: 0,
+      length_m: null,
+      width_m: null,
+      weight_kg: null,
+      efficiency_percent: null,
+      origin_country: '',
+      description: '',
+      pros: '',
+      cons: '',
+      rating: null,
+      image_base64: '',
+      datasheet_link_db_path: '',
+      additional_cost_netto: 0,
+      company_id: null,
+      cell_technology: '',
+      module_structure: '',
+      cell_type: '',
+      version: '',
+      module_warranty_text: '',
+      labor_hours: null
+    });
+    setEditingProduct(null);
+    setIsFormOpen(false);
+  };
+
+  // Filter products
+  const filteredProducts = products.filter(product => {
+    const matchesCategory = filterCategory === 'Alle Kategorien' || product.category === filterCategory;
+    const matchesSearch = !searchText.trim() || 
+      product.model_name?.toLowerCase().includes(searchText.toLowerCase()) ||
+      product.brand?.toLowerCase().includes(searchText.toLowerCase());
+    
+    return matchesCategory && matchesSearch;
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Link to="/admin" className="text-slate-500 hover:text-slate-700">Admin</Link>
-                <span className="text-slate-400">/</span>
-                <span className="text-slate-900 font-medium">Produktverwaltung</span>
-              </div>
-              <h1 className="text-2xl font-bold text-slate-900">📦 Produktverwaltung</h1>
-              <p className="text-slate-600">Verwalten Sie Ihre Produktkataloge und Preise</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowAdd(true)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">+ Produkt hinzufügen</button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Import/Export
-              </button>
-            </div>
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Produktverwaltung</h2>
+
+        {/* Bulk Upload Section */}
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-lg font-semibold text-blue-900 mb-3">Produktdatenbank hochladen (Excel/CSV)</h3>
+          <p className="text-blue-700 mb-4">Laden Sie eine Excel (.xlsx) oder CSV (.csv) Datei mit Produktdaten hoch. Pflichtfelder: model_name, category</p>
+          
+          <div className="flex gap-3 items-center">
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            
+            <button 
+              onClick={() => uploadFile && handleFileUpload(uploadFile)}
+              disabled={!uploadFile || loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {loading ? 'Verarbeite...' : 'Datei verarbeiten'}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Controls */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="bg-white rounded-lg border p-4 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Produkt suchen..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <div className="absolute left-3 top-2.5 text-slate-400">🔍</div>
-              </div>
-            </div>
+        {/* Manual Product Form Toggle */}
+        <div className="mb-6">
+          <button 
+            onClick={() => setIsFormOpen(!isFormOpen)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            {isFormOpen ? 'Formular schließen' : 'Neues Produkt manuell anlegen'}
+          </button>
+        </div>
 
-            {/* Category Filter */}
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategory === 'all' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                Alle ({products.length})
-              </button>
-              {[...new Set(products.map(p => p.kategorie).filter(Boolean))].map((kat) => {
-                const count = products.filter(p => p.kategorie === kat).length
-                return (
-                  <button
-                    key={kat as string}
-                    onClick={() => setSelectedCategory(kat as string)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedCategory === kat 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+        {/* Manual Product Form */}
+        {isFormOpen && (
+          <div className="mb-6 p-6 bg-gray-50 rounded-lg border">
+            <form onSubmit={handleSubmit}>
+              <h3 className="text-xl font-semibold mb-4">
+                {editingProduct ? `Produkt bearbeiten: ${editingProduct.model_name}` : 'Neues Produkt anlegen'}
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Required fields */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Modellname *</label>
+                  <input
+                    type="text"
+                    value={formData.model_name || ''}
+                    onChange={(e) => handleFormChange('model_name', e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie *</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => handleFormChange('category', e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {kat} ({count})
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* View & Sort Controls */}
-            <div className="flex gap-2">
-              <select
-                value={`${sortBy}-${sortOrder}`}
-                onChange={(e) => {
-                  const [field, order] = e.target.value.split('-')
-                  setSortBy(field as typeof sortBy)
-                  setSortOrder(order as 'asc' | 'desc')
-                }}
-                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              >
-                <option value="name-asc">Name A-Z</option>
-                <option value="name-desc">Name Z-A</option>
-                <option value="brand-asc">Marke A-Z</option>
-                <option value="price-asc">Preis niedrig-hoch</option>
-                <option value="price-desc">Preis hoch-niedrig</option>
-                <option value="power-desc">Leistung hoch-niedrig</option>
-              </select>
-
-              <div className="flex bg-slate-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
-                    viewMode === 'grid' 
-                      ? 'bg-white text-slate-900 shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  📋
-                </button>
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
-                    viewMode === 'table' 
-                      ? 'bg-white text-slate-900 shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  📊
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Products Display */}
-        {loading ? (
-          <div className="text-center py-12 text-slate-600">Lade Produkte…</div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredAndSortedProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <ProductTable products={filteredAndSortedProducts} />
-        )}
-
-        {filteredAndSortedProducts.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📦</div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">Keine Produkte gefunden</h3>
-            <p className="text-slate-600">
-              {searchTerm ? `Keine Produkte für "${searchTerm}"` : 'Keine Produkte in dieser Kategorie'}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-            <div className="px-5 py-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Neues Produkt anlegen</h3>
-              <button onClick={() => setShowAdd(false)} className="text-slate-500 hover:text-slate-800">✖</button>
-            </div>
-            <div className="p-5">
-              <div className="grid md:grid-cols-2 gap-3">
-                <label className="text-sm">Kategorie*
-                  <select className="w-full px-3 py-2 border rounded" value={newProduct.kategorie} onChange={(e) => setNewProduct({ ...newProduct, kategorie: e.target.value })}>
-                    <option value="">-- wählen --</option>
-                    {Array.from(new Set(['PV Modul','Wechselrichter','Batteriespeicher','Wallbox','Energiemanagementsystem','Leistungsoptimierer','Carport','Notstromversorgung','Tierabwehrschutz','Extrakosten']))
-                      .map(k => (<option key={k} value={k}>{k}</option>))}
+                    {PRODUCT_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
-                </label>
-                <label className="text-sm">Hersteller*
-                  <input className="w-full px-3 py-2 border rounded" value={newProduct.hersteller} onChange={(e) => setNewProduct({ ...newProduct, hersteller: e.target.value })} />
-                </label>
-                <label className="text-sm">Produktmodell*
-                  <input className="w-full px-3 py-2 border rounded" value={newProduct.produkt_modell} onChange={(e) => setNewProduct({ ...newProduct, produkt_modell: e.target.value })} />
-                </label>
-                <label className="text-sm">Preis (€/Stück)
-                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded" value={newProduct.preis_stück} onChange={(e) => setNewProduct({ ...newProduct, preis_stück: e.target.value })} />
-                </label>
-                <label className="text-sm">PV-Leistung (Wp)
-                  <input type="number" className="w-full px-3 py-2 border rounded" value={newProduct.pv_modul_leistung} onChange={(e) => setNewProduct({ ...newProduct, pv_modul_leistung: e.target.value })} />
-                </label>
-                <label className="text-sm">WR-Leistung (kW)
-                  <input type="number" step="0.1" className="w-full px-3 py-2 border rounded" value={newProduct.wr_leistung_kw} onChange={(e) => setNewProduct({ ...newProduct, wr_leistung_kw: e.target.value })} />
-                </label>
-                <label className="text-sm">Speicher (kWh)
-                  <input type="number" step="0.1" className="w-full px-3 py-2 border rounded" value={newProduct.kapazitaet_speicher_kwh} onChange={(e) => setNewProduct({ ...newProduct, kapazitaet_speicher_kwh: e.target.value })} />
-                </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hersteller</label>
+                  <input
+                    type="text"
+                    value={formData.brand || ''}
+                    onChange={(e) => handleFormChange('brand', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Preis (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.price_euro || 0}
+                    onChange={(e) => handleFormChange('price_euro', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Garantie (Jahre)</label>
+                  <input
+                    type="number"
+                    value={formData.warranty_years || 0}
+                    onChange={(e) => handleFormChange('warranty_years', parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zusatzkosten Netto (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.additional_cost_netto || 0}
+                    onChange={(e) => handleFormChange('additional_cost_netto', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Category-specific fields */}
+                {formData.category === 'Modul' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Kapazität (W)</label>
+                      <input
+                        type="number"
+                        value={formData.capacity_w || ''}
+                        onChange={(e) => handleFormChange('capacity_w', parseFloat(e.target.value) || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Effizienz (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={formData.efficiency_percent || ''}
+                        onChange={(e) => handleFormChange('efficiency_percent', parseFloat(e.target.value) || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-            <div className="px-5 py-4 border-t flex justify-end gap-2">
-              <button onClick={() => setShowAdd(false)} className="px-4 py-2 border rounded">Abbrechen</button>
-              <button
-                onClick={async () => {
-                  if (!newProduct.kategorie || !newProduct.produkt_modell || !newProduct.hersteller) { alert('Kategorie, Produktmodell und Hersteller sind Pflicht'); return }
-                  const payload: Record<string, any> = {}
-                  for (const [k, v] of Object.entries(newProduct)) {
-                    if (v && String(v).trim() !== '') payload[k] = v
-                  }
-                  const api = (window as any).productsAPI
-                  if (!api) { alert('productsAPI nicht verfügbar'); return }
-                  const res = await api.addSingle(payload)
-                  if (!res?.success) { alert('Speichern fehlgeschlagen: ' + (res?.error || 'Unbekannt')); return }
-                  setShowAdd(false)
-                  setNewProduct({ kategorie: '', hersteller: '', produkt_modell: '', preis_stück: '', pv_modul_leistung: '', wr_leistung_kw: '', kapazitaet_speicher_kwh: '' })
-                  // reload list
-                  setLoading(true)
-                  const items = await loadProducts()
-                  setProducts(items)
-                  setLoading(false)
-                }}
-                className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >Speichern</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
-// Product Card Component
-function ProductCard({ product }: { product: ProduktStd }) {
-  const getIcon = () => {
-    const k = (product.kategorie || '').toLowerCase()
-    if (k.includes('modul') || k.includes('pv')) return '⚡'
-    if (k.includes('wechselrichter') || k.includes('inverter')) return '🔄'
-    if (k.includes('speicher') || k.includes('batter')) return '🔋'
-    if (k.includes('wallbox')) return '🚗'
-    if (k.includes('montage')) return '🔧'
-    return '📦'
-  }
-  const getPowerDisplay = () => {
-    const k = (product.kategorie || '').toLowerCase()
-    if (k.includes('modul') || k.includes('pv')) return product.pv_modul_leistung ? `${product.pv_modul_leistung} Wp` : ''
-    if (k.includes('wechselrichter') || k.includes('inverter')) return product.wr_leistung_kw ? `${formatGermanNumber(product.wr_leistung_kw, 1)} kW` : ''
-    if (k.includes('speicher') || k.includes('batter')) return product.kapazitaet_speicher_kwh ? `${formatGermanNumber(product.kapazitaet_speicher_kwh, 1)} kWh` : ''
-    return ''
-  }
-
-  return (
-    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-3">
-          <div className="text-2xl">{getIcon()}</div>
-        </div>
-
-        {/* Product Info */}
-        <div className="mb-3">
-          <h3 className="font-semibold text-slate-900 text-sm mb-1 leading-tight">
-            {product.produkt_modell}
-          </h3>
-          <p className="text-slate-600 text-xs">{product.hersteller} {product.spezial_merkmal ? `• ${product.spezial_merkmal}` : ''}</p>
-        </div>
-
-        {/* Key Specs */}
-        <div className="space-y-1 mb-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Leistung:</span>
-            <span className="font-medium">{getPowerDisplay() || '-'}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Effizienz:</span>
-            <span className="font-medium">{product.wirkungsgrad_prozent != null ? `${formatGermanNumber(product.wirkungsgrad_prozent, 1)}%` : '-'}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Garantie:</span>
-            <span className="font-medium">{product.garantie_zeit ?? 0} Jahre</span>
-          </div>
-        </div>
-
-        {/* Price */}
-        <div className="flex justify-between items-center pt-3 border-t">
-          <div className="text-lg font-bold text-green-600">
-            {formatGermanCurrency(product.preis_stück ?? 0)}
-          </div>
-          <div className="text-xs text-slate-500">
-            netto
-          </div>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="px-4 py-3 bg-slate-50 border-t flex gap-2">
-        <button className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
-          Bearbeiten
-        </button>
-        <button className="px-3 py-2 border border-slate-300 text-slate-700 text-sm rounded hover:bg-slate-100 transition-colors">
-          Details
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// Product Table Component  
-function ProductTable({ products }: { products: ProduktStd[] }) {
-  const [workingId, setWorkingId] = useState<string | null>(null)
-  const refresh = async () => {
-    const items = await loadProducts()
-  // schnelle Lösung: Seite neu laden
-  window.location.reload()
-  }
-  return (
-    <div className="bg-white rounded-lg border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-50 border-b">
-            <tr>
-              <th className="text-left py-3 px-4 font-medium text-slate-900">Produkt</th>
-              <th className="text-left py-3 px-4 font-medium text-slate-900">Kategorie</th>
-              <th className="text-right py-3 px-4 font-medium text-slate-900">Leistung</th>
-              <th className="text-right py-3 px-4 font-medium text-slate-900">Effizienz</th>
-              <th className="text-right py-3 px-4 font-medium text-slate-900">Preis</th>
-              <th className="text-center py-3 px-4 font-medium text-slate-900">Aktionen</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {products.map(product => (
-              <tr key={product.id} className="hover:bg-slate-50">
-                <td className="py-3 px-4">
-                  <div>
-                    <div className="font-medium text-slate-900">{product.produkt_modell}</div>
-                    <div className="text-sm text-slate-600">{product.hersteller} {product.spezial_merkmal ? `• ${product.spezial_merkmal}` : ''}</div>
+              {/* Image upload */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Produktbild (PNG, JPG, max. 2MB)</label>
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {formData.image_base64 && (
+                  <div className="mt-2">
+                    <img 
+                      src={`data:image/jpeg;base64,${formData.image_base64}`}
+                      alt="Product preview"
+                      className="w-32 h-32 object-contain border rounded"
+                    />
                   </div>
-                </td>
-                <td className="py-3 px-4">
-                  <span className="px-2 py-1 bg-slate-100 text-slate-800 rounded text-sm">{product.kategorie}</span>
-                </td>
-                <td className="py-3 px-4 text-right">
-                  {(() => {
-                    const k = (product.kategorie || '').toLowerCase()
-                    if (k.includes('modul') || k.includes('pv')) return product.pv_modul_leistung ? `${product.pv_modul_leistung} Wp` : ''
-                    if (k.includes('wechselrichter') || k.includes('inverter')) return product.wr_leistung_kw ? `${formatGermanNumber(product.wr_leistung_kw, 1)} kW` : ''
-                    if (k.includes('speicher') || k.includes('batter')) return product.kapazitaet_speicher_kwh ? `${formatGermanNumber(product.kapazitaet_speicher_kwh, 1)} kWh` : ''
-                    return ''
-                  })()}
-                </td>
-                <td className="py-3 px-4 text-right">
-                  {product.wirkungsgrad_prozent != null ? `${formatGermanNumber(product.wirkungsgrad_prozent, 1)}%` : '-'}
-                </td>
-                <td className="py-3 px-4 text-right font-medium">
-                  {formatGermanCurrency(product.preis_stück ?? 0)}
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <div className="flex justify-center gap-1">
-                    <button className="p-1 text-blue-600 hover:bg-blue-50 rounded">✏️</button>
-                    <button className="p-1 text-slate-600 hover:bg-slate-50 rounded">👁️</button>
-                    <button
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                      disabled={workingId === String(product.id)}
-                      onClick={async () => {
-                        if (!confirm('Produkt wirklich löschen?')) return
-                        const api = (window as any).productsAPI
-                        if (!api) return
-                        setWorkingId(String(product.id))
-                        try {
-                          const res = await api.deleteSingle(Number(product.id))
-                          if (!res?.success) alert('Löschen fehlgeschlagen')
-                          else await refresh()
-                        } finally {
-                          setWorkingId(null)
-                        }
-                      }}
-                    >🗑️</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Speichere...' : (editingProduct ? 'Aktualisieren' : 'Hinzufügen')}
+                </button>
+                
+                <button 
+                  type="button"
+                  onClick={resetForm}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Filter and Search */}
+        <div className="mb-6 flex flex-wrap gap-4 items-center">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie:</label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Alle Kategorien">Alle Kategorien</option>
+              {PRODUCT_CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Suche:</label>
+            <input
+              type="text"
+              placeholder="Modell/Hersteller suchen..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+            />
+          </div>
+
+          <div className="flex items-end">
+            <button 
+              onClick={() => loadProducts()}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Lade...' : 'Aktualisieren'}
+            </button>
+          </div>
+        </div>
+
+        {/* Products Table */}
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Produkte ({filteredProducts.length})</h3>
+          {filteredProducts.length === 0 ? (
+            <p className="text-gray-500">Keine Produkte gefunden.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full border border-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="border border-gray-300 px-4 py-2 text-left">ID</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Kategorie</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Modell</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Hersteller</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Preis (€)</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Garantie</th>
+                    <th className="border border-gray-300 px-4 py-2 text-left">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 px-4 py-2">{product.id}</td>
+                      <td className="border border-gray-300 px-4 py-2">{product.category}</td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          {product.image_base64 && (
+                            <img 
+                              src={`data:image/jpeg;base64,${product.image_base64}`}
+                              alt={product.model_name}
+                              className="w-8 h-8 object-contain"
+                            />
+                          )}
+                          {product.model_name}
+                        </div>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">{product.brand}</td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {(product.price_euro || 0).toFixed(2)}€
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {product.warranty_years || 0} Jahre
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleEdit(product)}
+                            className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                          >
+                            Bearbeiten
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(product.id!)}
+                            className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  )
+  );
 }

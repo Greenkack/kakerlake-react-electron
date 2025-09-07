@@ -2,7 +2,32 @@
 // Mirrors crm.py customer CRUD functions exactly
 
 import Database from 'better-sqlite3';
-import { Customer } from '@kakerlake/core/types/db';
+
+/**
+ * Local Customer type fallback to avoid depending on external package paths.
+ * Contains commonly used fields and a catch-all index signature so the
+ * repository can access arbitrary customer fields produced by other parts
+ * of the app without compile errors.
+ */
+export interface Customer {
+  id?: number | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  salutation?: string | null;
+  title?: string | null;
+  company_name?: string | null;
+  address?: string | null;
+  house_number?: string | null;
+  zip_code?: string | null;
+  city?: string | null;
+  state?: string | null;
+  region?: string | null;
+  email?: string | null;
+  phone_landline?: string | null;
+  phone_mobile?: string | null;
+  last_updated?: string | null;
+  [key: string]: any;
+}
 
 export class CustomerRepository {
   constructor(private db: Database.Database) {}

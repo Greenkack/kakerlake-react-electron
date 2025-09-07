@@ -2,35 +2,103 @@
 // Mirrors product_db.py CRUD functions exactly
 
 import Database from 'better-sqlite3';
-import { Product } from '../../../../packages/core/src/types/db';
+
+// Local Product type fallback to avoid depending on the monorepo package during build.
+// Contains all fields from Python product_db.py to ensure full compatibility
+export interface Product {
+  id?: number | null;
+  category?: string | null;
+  model_name?: string | null;
+  brand?: string | null;
+  price_euro?: number | null;
+  capacity_w?: number | null;
+  storage_power_kw?: number | null;
+  power_kw?: number | null;
+  max_cycles?: number | null;
+  warranty_years?: number | null;
+  length_m?: number | null;
+  width_m?: number | null;
+  weight_kg?: number | null;
+  efficiency_percent?: number | null;
+  origin_country?: string | null;
+  description?: string | null;
+  pros?: string | null;
+  cons?: string | null;
+  rating?: number | null;
+  image_base64?: string | null;
+  datasheet_link_db_path?: string | null;
+  additional_cost_netto?: number | null;
+  company_id?: number | null;
+  // NEW: Module detail fields from Python
+  cell_technology?: string | null;
+  module_structure?: string | null;
+  cell_type?: string | null;
+  version?: string | null;
+  module_warranty_text?: string | null;
+  labor_hours?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  [key: string]: any;
+}
 
 export class ProductRepository {
   constructor(private db: Database.Database) {}
 
-  // Mirrors product_db.py:add_product
+  // Mirrors product_db.py:add_product with full validation
   async addProduct(productData: Product): Promise<number | null> {
     try {
       const now = new Date().toISOString();
-      const sanitizedData = {
-        ...productData,
-        created_at: productData.created_at || now,
-        updated_at: now,
-      };
+      
+      // Validate required fields (mirrors Python validation)
+      if (!productData.category || !productData.model_name) {
+        console.error('ProductRepository.addProduct: category and model_name are required');
+        return null;
+      }
 
-      // Remove undefined/null values, let database handle defaults
-      const cleanData = Object.fromEntries(
-        Object.entries(sanitizedData).filter(([_, value]) => value !== undefined && value !== null)
-      );
+      // Check for duplicate model_name (mirrors Python validation)
+      const existingProduct = this.db.prepare('SELECT id FROM products WHERE model_name = ?')
+        .get(productData.model_name);
+      if (existingProduct) {
+        console.error(`ProductRepository.addProduct: Product with model_name '${productData.model_name}' already exists`);
+        return null;
+      }
 
-      const fields = Object.keys(cleanData);
+      // Prepare data with all Python columns
+      const allDbColumns = [
+        'category', 'model_name', 'brand', 'price_euro', 'capacity_w', 'storage_power_kw', 
+        'power_kw', 'max_cycles', 'warranty_years', 'length_m', 'width_m', 'weight_kg', 
+        'efficiency_percent', 'origin_country', 'description', 'pros', 'cons', 'rating', 
+        'image_base64', 'datasheet_link_db_path', 'additional_cost_netto', 'company_id',
+        'cell_technology', 'module_structure', 'cell_type', 'version', 'module_warranty_text',
+        'labor_hours', 'created_at', 'updated_at'
+      ];
+
+      const insertData: Record<string, any> = {};
+      
+      // Process each column (mirrors Python logic)
+      for (const colName of allDbColumns) {
+        if (colName === 'created_at' || colName === 'updated_at') {
+          insertData[colName] = now;
+        } else if (colName in productData && productData[colName] !== undefined) {
+          insertData[colName] = productData[colName];
+        } else {
+          // Set to null for optional fields (mirrors Python logic)
+          insertData[colName] = null;
+        }
+      }
+
+      const fields = Object.keys(insertData);
       const placeholders = fields.map(() => '?').join(', ');
-      const values = fields.map(k => cleanData[k]);
+      const values = fields.map(k => insertData[k]);
 
       const stmt = this.db.prepare(`INSERT INTO products (${fields.join(', ')}) VALUES (${placeholders})`);
       const result = stmt.run(...values);
-      return result.lastInsertRowid as number;
+      
+      const productId = result.lastInsertRowid as number;
+      console.log(`ProductRepository.addProduct: Product '${productData.model_name}' successfully added with ID ${productId}`);
+      return productId;
     } catch (error) {
-      console.error('Error adding product:', error);
+      console.error('ProductRepository.addProduct: SQLite error:', error);
       return null;
     }
   }
@@ -73,6 +141,18 @@ export class ProductRepository {
       return row || null;
     } catch (error) {
       console.error('Error getting product by ID:', error);
+      return null;
+    }
+  }
+
+  // Mirrors product_db.py:get_product_by_model_name (needed for bulk import)
+  async getProductByModelName(modelName: string): Promise<Product | null> {
+    try {
+      const stmt = this.db.prepare('SELECT * FROM products WHERE model_name = ?');
+      const row = stmt.get(modelName) as Product | undefined;
+      return row || null;
+    } catch (error) {
+      console.error('Error getting product by model name:', error);
       return null;
     }
   }

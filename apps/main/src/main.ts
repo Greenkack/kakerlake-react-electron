@@ -99,95 +99,99 @@ async function create() {
 	}
 }
 
-// IPC handlers
-ipcMain.handle('solar:get_pv_manufacturers', async () => JSON.parse(await runPy('get_pv_manufacturers')));
-ipcMain.handle('solar:get_pv_models', async (_e, m: string) => JSON.parse(await runPy('get_pv_models', m)));
-ipcMain.handle('solar:get_inverter_manufacturers', async () => JSON.parse(await runPy('get_inverter_manufacturers')));
-ipcMain.handle('solar:get_inverter_models', async (_e, m: string) => JSON.parse(await runPy('get_inverter_models', m)));
-ipcMain.handle('solar:get_storage_manufacturers', async () => JSON.parse(await runPy('get_storage_manufacturers')));
-ipcMain.handle('solar:get_storage_models', async (_e, m: string) => JSON.parse(await runPy('get_storage_models', m)));
-ipcMain.handle('solar:get_wallbox_manufacturers', async () => JSON.parse(await runPy('get_wallbox_manufacturers')));
-ipcMain.handle('solar:get_wallbox_models', async (_e, m: string) => JSON.parse(await runPy('get_wallbox_models', m)));
-ipcMain.handle('solar:get_ems_manufacturers', async () => JSON.parse(await runPy('get_ems_manufacturers')));
-ipcMain.handle('solar:get_ems_models', async (_e, m: string) => JSON.parse(await runPy('get_ems_models', m)));
-ipcMain.handle('solar:get_optimizer_manufacturers', async () => JSON.parse(await runPy('get_optimizer_manufacturers')));
-ipcMain.handle('solar:get_optimizer_models', async (_e, m: string) => JSON.parse(await runPy('get_optimizer_models', m)));
-ipcMain.handle('solar:get_carport_manufacturers', async () => JSON.parse(await runPy('get_carport_manufacturers')));
-ipcMain.handle('solar:get_carport_models', async (_e, m: string) => JSON.parse(await runPy('get_carport_models', m)));
-ipcMain.handle('solar:get_emergency_power_manufacturers', async () => JSON.parse(await runPy('get_emergency_power_manufacturers')));
-ipcMain.handle('solar:get_emergency_power_models', async (_e, m: string) => JSON.parse(await runPy('get_emergency_power_models', m)));
-ipcMain.handle('solar:get_animal_protection_manufacturers', async () => JSON.parse(await runPy('get_animal_protection_manufacturers')));
-ipcMain.handle('solar:get_animal_protection_models', async (_e, m: string) => JSON.parse(await runPy('get_animal_protection_models', m)));
-ipcMain.handle('solar:save_config', async (_e, cfg: Record<string, unknown>) => {
-	const json = JSON.stringify(cfg);
-	return JSON.parse(await runPy('save_config', json));
-});
-
-// CRM & Projects IPC handlers (bridge to existing Python logic)
-ipcMain.handle('crm:list_customers', async () => JSON.parse(await runPy('crm_list_customers')));
-ipcMain.handle('crm:get_customer', async (_e, id: number) => JSON.parse(await runPy('crm_get_customer', String(id))));
-ipcMain.handle('crm:save_customer', async (_e, data: Record<string, unknown>) => {
-	const json = JSON.stringify(data);
-	return JSON.parse(await runPy('crm_save_customer', json));
-});
-ipcMain.handle('crm:delete_customer', async (_e, id: number) => JSON.parse(await runPy('crm_delete_customer', String(id))));
-
-ipcMain.handle('projects:list_for_customer', async (_e, customerId: number) => JSON.parse(await runPy('crm_list_projects_for_customer', String(customerId))));
-ipcMain.handle('projects:get', async (_e, id: number) => JSON.parse(await runPy('crm_get_project', String(id))));
-ipcMain.handle('projects:save', async (_e, data: Record<string, unknown>) => {
-	const json = JSON.stringify(data);
-	return JSON.parse(await runPy('crm_save_project', json));
-});
-ipcMain.handle('projects:delete', async (_e, id: number) => JSON.parse(await runPy('crm_delete_project', String(id))));
-
-// Import/Document IPC handlers
-ipcMain.handle('import:products_from_file', async (_e, payload: Record<string, unknown>) => {
-	const json = JSON.stringify(payload);
-	return JSON.parse(await runPy('import_products_from_file', json));
-});
-ipcMain.handle('import:customers_from_file', async (_e, payload: Record<string, unknown>) => {
-	const json = JSON.stringify(payload);
-	return JSON.parse(await runPy('import_customers_from_file', json));
-});
-ipcMain.handle('crm:add_customer_document_from_path', async (_e, payload: Record<string, unknown>) => {
-	const json = JSON.stringify(payload);
-	return JSON.parse(await runPy('add_customer_document_from_path', json));
-});
-
-// Produkt: Einzel hinzufügen/aktualisieren
-ipcMain.handle('products:add_single', async (_e, payload: Record<string, unknown>) => {
-	const json = JSON.stringify(payload);
-	return JSON.parse(await runPy('add_product_single', json));
-});
-ipcMain.handle('products:update_single', async (_e, id: number, payload: Record<string, unknown>) => {
-	const json = JSON.stringify(payload);
-	return JSON.parse(await runPy('update_product_single', String(id), json));
-});
-// Produkte: Liste/Löschen
-ipcMain.handle('products:list', async (_e, payload?: Record<string, unknown>) => {
-	const json = JSON.stringify(payload ?? {});
-	return JSON.parse(await runPy('products_list', json));
-});
-ipcMain.handle('products:delete_single', async (_e, id: number) => {
-	return JSON.parse(await runPy('delete_product_single', String(id)));
-});
-
-// Datei öffnen Dialog (nur Pfad zurück)
-ipcMain.handle('system:show_open_dialog', async (_e, options: any) => {
-	const win = BrowserWindow.getFocusedWindow();
-	const res = await dialog.showOpenDialog(win!, options ?? { properties: ['openFile'] });
-	return res;
-});
-
-ipcMain.handle('system:python_info', async () => {
-	return await detectPython();
-});
-
 app.whenReady().then(() => {
+	// Entferne alle existierenden IPC-Handler um Duplikate zu vermeiden
+	ipcMain.removeAllListeners();
+	
 	runMigrations();
 	const db = getDb();
-	registerCrmHandlers(db);
-	registerProductHandlers(db);
-	registerPdfHandlers();
+	
+	// Registriere alle IPC-Handler neu mit Fehlerbehandlung
+	try {
+		registerCrmHandlers(db);
+		console.log('CRM handlers registered successfully');
+	} catch (error) {
+		console.error('Failed to register CRM handlers:', error);
+	}
+	
+	try {
+		registerProductHandlers(db);
+		console.log('Product handlers registered successfully');
+	} catch (error) {
+		console.error('Failed to register Product handlers:', error);
+	}
+	
+	try {
+		registerPdfHandlers();
+		console.log('PDF handlers registered successfully');
+	} catch (error) {
+		console.error('Failed to register PDF handlers:', error);
+	}
+	
+	// Registriere die direkten IPC-Handler wieder
+	try {
+		// Solar API handlers
+		ipcMain.handle('solar:get_pv_manufacturers', async () => JSON.parse(await runPy('get_pv_manufacturers')));
+		ipcMain.handle('solar:get_pv_models', async (_e, m: string) => JSON.parse(await runPy('get_pv_models', m)));
+		ipcMain.handle('solar:get_inverter_manufacturers', async () => JSON.parse(await runPy('get_inverter_manufacturers')));
+		ipcMain.handle('solar:get_inverter_models', async (_e, m: string) => JSON.parse(await runPy('get_inverter_models', m)));
+		ipcMain.handle('solar:get_storage_manufacturers', async () => JSON.parse(await runPy('get_storage_manufacturers')));
+		ipcMain.handle('solar:get_storage_models', async (_e, m: string) => JSON.parse(await runPy('get_storage_models', m)));
+		ipcMain.handle('solar:get_wallbox_manufacturers', async () => JSON.parse(await runPy('get_wallbox_manufacturers')));
+		ipcMain.handle('solar:get_wallbox_models', async (_e, m: string) => JSON.parse(await runPy('get_wallbox_models', m)));
+		ipcMain.handle('solar:get_ems_manufacturers', async () => JSON.parse(await runPy('get_ems_manufacturers')));
+		ipcMain.handle('solar:get_ems_models', async (_e, m: string) => JSON.parse(await runPy('get_ems_models', m)));
+		ipcMain.handle('solar:get_optimizer_manufacturers', async () => JSON.parse(await runPy('get_optimizer_manufacturers')));
+		ipcMain.handle('solar:get_optimizer_models', async (_e, m: string) => JSON.parse(await runPy('get_optimizer_models', m)));
+		ipcMain.handle('solar:get_carport_manufacturers', async () => JSON.parse(await runPy('get_carport_manufacturers')));
+		ipcMain.handle('solar:get_carport_models', async (_e, m: string) => JSON.parse(await runPy('get_carport_models', m)));
+		ipcMain.handle('solar:get_emergency_power_manufacturers', async () => JSON.parse(await runPy('get_emergency_power_manufacturers')));
+		ipcMain.handle('solar:get_emergency_power_models', async (_e, m: string) => JSON.parse(await runPy('get_emergency_power_models', m)));
+		ipcMain.handle('solar:get_animal_protection_manufacturers', async () => JSON.parse(await runPy('get_animal_protection_manufacturers')));
+		ipcMain.handle('solar:get_animal_protection_models', async (_e, m: string) => JSON.parse(await runPy('get_animal_protection_models', m)));
+		ipcMain.handle('solar:save_config', async (_e, cfg: Record<string, unknown>) => {
+			const json = JSON.stringify(cfg);
+			return JSON.parse(await runPy('save_config', json));
+		});
+
+		// Import handlers (Bridge zu Python)
+		ipcMain.handle('import:products_from_file', async (_e, payload: Record<string, unknown>) => {
+			const json = JSON.stringify(payload);
+			return JSON.parse(await runPy('import_products_from_file', json));
+		});
+		
+		ipcMain.handle('products:add_single', async (_e, payload: Record<string, unknown>) => {
+			const json = JSON.stringify(payload);
+			return JSON.parse(await runPy('add_product_single', json));
+		});
+		ipcMain.handle('products:update_single', async (_e, id: number, payload: Record<string, unknown>) => {
+			const json = JSON.stringify(payload);
+			return JSON.parse(await runPy('update_product_single', String(id), json));
+		});
+		// Produkte: Liste/Löschen
+		ipcMain.handle('products:list', async (_e, payload?: Record<string, unknown>) => {
+			const json = JSON.stringify(payload ?? {});
+			return JSON.parse(await runPy('products_list', json));
+		});
+		ipcMain.handle('products:delete_single', async (_e, id: number) => {
+			return JSON.parse(await runPy('delete_product_single', String(id)));
+		});
+
+		// System handlers
+		ipcMain.handle('system:show_open_dialog', async (_e, options: any) => {
+			const win = BrowserWindow.getFocusedWindow();
+			const res = await dialog.showOpenDialog(win!, options ?? { properties: ['openFile'] });
+			return res;
+		});
+
+		ipcMain.handle('system:python_info', async () => {
+			return await detectPython();
+		});
+		
+		console.log('Direct IPC handlers registered successfully');
+	} catch (error) {
+		console.error('Failed to register direct IPC handlers:', error);
+	}
+	
 	create();
 });

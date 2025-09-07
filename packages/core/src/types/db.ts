@@ -2,6 +2,14 @@
 // Generated from Python sources: crm.py, database.py, product_db.py
 // Schema Version 14 - Complete CRM & Product Database Types
 
+export type ProductCategory = 
+  | 'Modul'
+  | 'Wechselrichter'
+  | 'Batteriespeicher'
+  | 'Wallbox'
+  | 'Zubehör'
+  | 'Sonstiges';
+
 export interface Customer {
   id?: number;
   salutation?: string;

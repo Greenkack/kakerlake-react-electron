@@ -1,16 +1,15 @@
 {
   "name": "kakerlake",
   "private": true,
-  "packageManager": "yarn@4.4.1",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-  "dev": "concurrently -k \"yarn --cwd apps/renderer dev\" \"wait-on -t 600000 http-get://127.0.0.1:5174 && yarn --cwd apps/main dev\"",
-    "build": "yarn --cwd packages/core build && yarn --cwd apps/renderer build && yarn --cwd apps/main build",
-    "dev:renderer": "yarn --cwd apps/renderer dev",
-    "dev:main": "yarn --cwd apps/main run dev"
+    "dev": "concurrently -k \"npm --prefix apps/renderer run dev\" \"wait-on -t 600000 http-get://127.0.0.1:5174 && npm --prefix apps/main run dev\"",
+    "build": "npm --prefix packages/core run build && npm --prefix apps/renderer run build && npm --prefix apps/main run build",
+    "dev:renderer": "npm --prefix apps/renderer run dev",
+    "dev:main": "npm --prefix apps/main run dev"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

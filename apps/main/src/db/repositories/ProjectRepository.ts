@@ -2,7 +2,20 @@
 // Mirrors crm.py project CRUD functions exactly
 
 import Database from 'better-sqlite3';
-import { Project } from '../../../../packages/core/src/types/db';
+
+// Local Project type fallback to avoid depending on external package paths.
+// Contains commonly used fields and a catch-all index signature so the
+// repository can access arbitrary project fields produced by other parts
+// of the app without compile errors.
+export interface Project {
+  id?: number | null;
+  customer_id?: number | null;
+  name?: string | null;
+  description?: string | null;
+  creation_date?: string | null;
+  last_updated?: string | null;
+  [key: string]: any;
+}
 
 export class ProjectRepository {
   constructor(private db: Database.Database) {}

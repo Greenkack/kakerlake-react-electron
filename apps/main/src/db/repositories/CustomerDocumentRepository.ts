@@ -2,9 +2,19 @@
 // Mirrors database.py customer document CRUD functions exactly
 
 import Database from 'better-sqlite3';
-import { CustomerDocument } from '../../../../packages/core/src/types/db';
 import * as fs from 'fs';
 import * as path from 'path';
+
+interface CustomerDocument {
+  id?: number;
+  customer_id: number;
+  project_id?: number | null;
+  doc_type?: string | null;
+  display_name?: string | null;
+  file_name?: string | null;
+  absolute_file_path?: string | null;
+  uploaded_at?: string | null;
+}
 
 export class CustomerDocumentRepository {
   constructor(private db: Database.Database) {}

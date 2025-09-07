@@ -99,6 +99,53 @@ const productsAPI = {
 
 contextBridge.exposeInMainWorld('productsAPI', productsAPI);
 
+// New Product Management API (mirrors Python admin_panel.py functionality)
+type ProductData = Record<string, unknown>;
+
+interface BulkImportRequest {
+  filename: string;
+  data: number[];
+  type: 'xlsx' | 'csv';
+}
+
+interface BulkImportResult {
+  success: boolean;
+  message?: string;
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors?: Array<{ row: number; model?: string; reason: string; }>;
+}
+
+const productAPI = {
+  // Basic CRUD operations
+  addProduct: (productData: ProductData): Promise<number | null> => 
+    ipcRenderer.invoke('product:addProduct', productData),
+  
+  listProducts: (category?: string | null): Promise<ProductData[]> => 
+    ipcRenderer.invoke('product:listProducts', category),
+  
+  getProductById: (id: number): Promise<ProductData | null> => 
+    ipcRenderer.invoke('product:getProductById', id),
+  
+  updateProduct: (id: number, productData: Partial<ProductData>): Promise<boolean> => 
+    ipcRenderer.invoke('product:updateProduct', id, productData),
+  
+  deleteProduct: (id: number): Promise<boolean> => 
+    ipcRenderer.invoke('product:deleteProduct', id),
+  
+  // Bulk import functionality
+  bulkImportProducts: (request: BulkImportRequest): Promise<BulkImportResult> => 
+    ipcRenderer.invoke('product:bulkImportProducts', request),
+};
+
+contextBridge.exposeInMainWorld('productAPI', productAPI);
+
+// Expose main API object
+contextBridge.exposeInMainWorld('api', {
+  product: productAPI,
+});
+
 // System Helfer
 const systemAPI = {
   openFileDialog: (filters?: Array<{ name: string; extensions: string[] }>, allowMultiple: boolean = false) =>
@@ -116,4 +163,20 @@ export type CrmAPI = typeof crmAPI;
 export type ProjectsAPI = typeof projectsAPI;
 export type ImportAPI = typeof importAPI;
 export type ProductsAPI = typeof productsAPI;
+export type ProductAPI = typeof productAPI;
 export type SystemAPI = typeof systemAPI;
+
+// Global type declaration for window API
+declare global {
+  interface Window {
+    solarAPI: SolarAPI;
+    crmAPI: CrmAPI;
+    projectsAPI: ProjectsAPI;
+    importAPI: ImportAPI;
+    productsAPI: ProductsAPI;
+    api: {
+      product: ProductAPI;
+    };
+    systemAPI: SystemAPI;
+  }
+}
