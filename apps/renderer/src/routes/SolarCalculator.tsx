@@ -2,8 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProject } from '../lib/projectContext';
 
-// Placeholder Product Type
-interface Product { id: string; category: string; brand: string; model: string; capacity_w?: number; power_kw?: number; storage_kwh?: number; }
+// Produkt-Typ mit deutschen, standardisierten Keys
+interface Product {
+  id: string;
+  kategorie: string;
+  hersteller: string;
+  produkt_modell: string;
+  pv_modul_leistung?: number;
+  wr_leistung_kw?: number;
+  kapazitaet_speicher_kwh?: number;
+}
 
 // Solar Calculator State Interface
 interface SolarConfig {
@@ -57,47 +65,60 @@ function useProducts(): { modules: Product[]; inverters: Product[]; storages: Pr
   const [data, setData] = useState<{ modules: Product[]; inverters: Product[]; storages: Product[]}>({ modules: [], inverters: [], storages: [] });
   const [loaded, setLoaded] = useState<boolean>(false);
   
-  useEffect(() => {
-    // @todo: Backend Integration (Python Bridge) -> load products per category
-    // Für jetzt: Erweiterte Mock-Daten basierend auf echter Produktdatenbank-Struktur
-    const mock: Product[] = [
-      // PV Module - Realistische Hersteller aus DB
-      { id: 'm1', category: 'PV Modul', brand: 'ViessmannPV', model: 'Vitovolt 300-DG M440HC', capacity_w: 440 },
-      { id: 'm2', category: 'PV Modul', brand: 'ViessmannPV', model: 'Vitovolt 300-DG M445HC', capacity_w: 445 },
-      { id: 'm3', category: 'PV Modul', brand: 'ViessmannPV', model: 'Vitovolt 300-DG M450HC', capacity_w: 450 },
-      { id: 'm4', category: 'PV Modul', brand: 'SolarfabrikPV', model: 'Mono S4 440W', capacity_w: 440 },
-      { id: 'm5', category: 'PV Modul', brand: 'SolarfabrikPV', model: 'Mono S4 450W', capacity_w: 450 },
-      { id: 'm6', category: 'PV Modul', brand: 'TrinaSolarPV', model: 'Vertex S+ 440W', capacity_w: 440 },
-      { id: 'm7', category: 'PV Modul', brand: 'TrinaSolarPV', model: 'Vertex S+ 455W', capacity_w: 455 },
-      { id: 'm8', category: 'PV Modul', brand: 'AikoSolarPV', model: 'A460-MAH54Mb', capacity_w: 460 },
-      
-      // Wechselrichter - Realistische Hersteller
-      { id: 'wr1', category: 'Wechselrichter', brand: 'HuaweiWR', model: 'SUN2000-8KTL-M1', power_kw: 8 },
-      { id: 'wr2', category: 'Wechselrichter', brand: 'HuaweiWR', model: 'SUN2000-10KTL-M1', power_kw: 10 },
-      { id: 'wr3', category: 'Wechselrichter', brand: 'HuaweiWR', model: 'SUN2000-12KTL-M5', power_kw: 12 },
-      { id: 'wr4', category: 'Wechselrichter', brand: 'GoodWeWR', model: 'GW8K-DT', power_kw: 8 },
-      { id: 'wr5', category: 'Wechselrichter', brand: 'GoodWeWR', model: 'GW10K-DT', power_kw: 10 },
-      { id: 'wr6', category: 'Wechselrichter', brand: 'FoxWR', model: 'FoxESS T8', power_kw: 8 },
-      { id: 'wr7', category: 'Wechselrichter', brand: 'SungrowWR', model: 'SG8K-D', power_kw: 8 },
-      
-      // Batteriespeicher - Realistische Hersteller  
-      { id: 's1', category: 'Batteriespeicher', brand: 'HuaweiSpeicher', model: 'LUNA2000-10-S0', storage_kwh: 10 },
-      { id: 's2', category: 'Batteriespeicher', brand: 'HuaweiSpeicher', model: 'LUNA2000-15-S0', storage_kwh: 15 },
-      { id: 's3', category: 'Batteriespeicher', brand: 'SungrowSpeicher', model: 'SBR096', storage_kwh: 9.6 },
-      { id: 's4', category: 'Batteriespeicher', brand: 'SungrowSpeicher', model: 'SBR128', storage_kwh: 12.8 },
-      { id: 's5', category: 'Batteriespeicher', brand: 'AlphaSpeicher', model: 'SMILE-B3', storage_kwh: 5.7 },
-      { id: 's6', category: 'Batteriespeicher', brand: 'FoxSpeicher', model: 'ECS4100', storage_kwh: 10.2 },
-      { id: 's7', category: 'Batteriespeicher', brand: 'GoodWeSpeicher', model: 'Lynx Home F G2', storage_kwh: 6.1 },
-      { id: 's8', category: 'Batteriespeicher', brand: 'ViessmannSpeicher', model: 'Vitocharge VX3', storage_kwh: 7.7 },
-    ];
     
-    setData({
-      modules: mock.filter(p => p.category === 'PV Modul'),
-      inverters: mock.filter(p => p.category === 'Wechselrichter'),
-      storages: mock.filter(p => p.category === 'Batteriespeicher'),
-    });
-    setLoaded(true);
-  }, []);
+    useEffect(() => {
+      let cancelled = false;
+      async function loadReal() {
+        try {
+          const api = (window as any).solarAPI;
+          if (!api) { setLoaded(true); return; }
+          // Lade alle Hersteller und deren Modelle
+          const [pvBrands, invBrands, storBrands] = await Promise.all([
+            api.getPVManufacturers(),
+            api.getInverterManufacturers(),
+            api.getStorageManufacturers(),
+          ]);
+          const [pvModelsArr, invModelsArr, storModelsArr] = await Promise.all([
+            Promise.all((pvBrands || []).map((b: string) => api.getPVModelsByManufacturer(b))),
+            Promise.all((invBrands || []).map((b: string) => api.getInverterModelsByManufacturer(b))),
+            Promise.all((storBrands || []).map((b: string) => api.getStorageModelsByManufacturer(b))),
+          ]);
+          if (cancelled) return;
+          const pvModels = pvModelsArr.flat();
+          const invModels = invModelsArr.flat();
+          const stModels = storModelsArr.flat();
+          setData({
+            modules: (pvModels || []).map((m: any) => ({
+              id: String(m.id),
+              kategorie: m.kategorie,
+              hersteller: m.hersteller,
+              produkt_modell: m.produkt_modell,
+              pv_modul_leistung: m.pv_modul_leistung,
+            })),
+            inverters: (invModels || []).map((m: any) => ({
+              id: String(m.id),
+              kategorie: m.kategorie,
+              hersteller: m.hersteller,
+              produkt_modell: m.produkt_modell,
+              wr_leistung_kw: m.wr_leistung_kw,
+            })),
+            storages: (stModels || []).map((m: any) => ({
+              id: String(m.id),
+              kategorie: m.kategorie,
+              hersteller: m.hersteller,
+              produkt_modell: m.produkt_modell,
+              kapazitaet_speicher_kwh: m.kapazitaet_speicher_kwh,
+            })),
+          });
+          setLoaded(true);
+        } catch (e) {
+          console.error('Echt-Daten Laden fehlgeschlagen, fallback Mock', e);
+          setLoaded(true);
+        }
+      }
+      loadReal();
+      return () => { cancelled = true; };
+    }, []);
   
   return { ...data, loaded };
 }
@@ -199,56 +220,104 @@ export default function SolarCalculator(): JSX.Element {
       try {
         // Wallbox
         if (config.wallboxEnabled && wallboxProducts.length === 0) {
-          const response = await fetch('/api/solar-calculator/manufacturers/wallbox');
-          if (response.ok) {
-            const data = await response.json();
-            setWallboxProducts(data.products || []);
-          }
+          const brands: string[] = (window as any).solarAPI ? await (window as any).solarAPI.getWallboxManufacturers() : [];
+          const allModels = (await Promise.all(
+            brands.map(async (b: string) => {
+              const models = await (window as any).solarAPI.getWallboxModelsByManufacturer(b);
+              return models.map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+              } as Product));
+            })
+          )).flat();
+          setWallboxProducts(allModels);
         }
 
         // EMS
         if (config.emsEnabled && emsProducts.length === 0) {
-          const response = await fetch('/api/solar-calculator/manufacturers/ems');
-          if (response.ok) {
-            const data = await response.json();
-            setEmsProducts(data.products || []);
-          }
+          const brands: string[] = (window as any).solarAPI ? await (window as any).solarAPI.getEMSManufacturers() : [];
+          const allModels = (await Promise.all(
+            brands.map(async (b: string) => {
+              const models = await (window as any).solarAPI.getEMSModelsByManufacturer(b);
+              return models.map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+              } as Product));
+            })
+          )).flat();
+          setEmsProducts(allModels);
         }
 
         // Optimizer
         if (config.optimizerEnabled && optimizerProducts.length === 0) {
-          const response = await fetch('/api/solar-calculator/manufacturers/optimizers');
-          if (response.ok) {
-            const data = await response.json();
-            setOptimizerProducts(data.products || []);
-          }
+          const brands: string[] = (window as any).solarAPI ? await (window as any).solarAPI.getOptimizerManufacturers() : [];
+          const allModels = (await Promise.all(
+            brands.map(async (b: string) => {
+              const models = await (window as any).solarAPI.getOptimizerModelsByManufacturer(b);
+              return models.map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+              } as Product));
+            })
+          )).flat();
+          setOptimizerProducts(allModels);
         }
 
         // Carport
         if (config.carportEnabled && carportProducts.length === 0) {
-          const response = await fetch('/api/solar-calculator/manufacturers/carports');
-          if (response.ok) {
-            const data = await response.json();
-            setCarportProducts(data.products || []);
-          }
+          const brands: string[] = (window as any).solarAPI ? await (window as any).solarAPI.getCarportManufacturers() : [];
+          const allModels = (await Promise.all(
+            brands.map(async (b: string) => {
+              const models = await (window as any).solarAPI.getCarportModelsByManufacturer(b);
+              return models.map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+              } as Product));
+            })
+          )).flat();
+          setCarportProducts(allModels);
         }
 
         // Emergency Power
         if (config.emergencyPowerEnabled && emergencyPowerProducts.length === 0) {
-          const response = await fetch('/api/solar-calculator/manufacturers/emergency_power');
-          if (response.ok) {
-            const data = await response.json();
-            setEmergencyPowerProducts(data.products || []);
-          }
+          const brands: string[] = (window as any).solarAPI ? await (window as any).solarAPI.getEmergencyPowerManufacturers() : [];
+          const allModels = (await Promise.all(
+            brands.map(async (b: string) => {
+              const models = await (window as any).solarAPI.getEmergencyPowerModelsByManufacturer(b);
+              return models.map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+              } as Product));
+            })
+          )).flat();
+          setEmergencyPowerProducts(allModels);
         }
 
         // Animal Protection
         if (config.animalProtectionEnabled && animalProtectionProducts.length === 0) {
-          const response = await fetch('/api/solar-calculator/manufacturers/animal_protection');
-          if (response.ok) {
-            const data = await response.json();
-            setAnimalProtectionProducts(data.products || []);
-          }
+          const brands: string[] = (window as any).solarAPI ? await (window as any).solarAPI.getAnimalProtectionManufacturers() : [];
+          const allModels = (await Promise.all(
+            brands.map(async (b: string) => {
+              const models = await (window as any).solarAPI.getAnimalProtectionModelsByManufacturer(b);
+              return models.map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+              } as Product));
+            })
+          )).flat();
+          setAnimalProtectionProducts(allModels);
         }
       } catch (error) {
         console.error('Fehler beim Laden der zusätzlichen Komponenten:', error);
@@ -262,38 +331,38 @@ export default function SolarCalculator(): JSX.Element {
       emergencyPowerProducts.length, animalProtectionProducts.length]);
 
   // Ableitungen
-  const filteredModuleModels = moduleProducts.filter(p => !config.moduleBrand || p.brand === config.moduleBrand);
-  const currentModule = filteredModuleModels.find(p => p.model === config.moduleModel);
-  const moduleWp = currentModule?.capacity_w || 0;
+  const filteredModuleModels = moduleProducts.filter(p => !config.moduleBrand || p.hersteller === config.moduleBrand);
+  const currentModule = filteredModuleModels.find(p => p.produkt_modell === config.moduleModel);
+  const moduleWp = currentModule?.pv_modul_leistung || 0;
   const kWp = useMemo(() => (config.moduleQty * moduleWp) / 1000, [config.moduleQty, moduleWp]);
 
-  const inverterBrands = Array.from(new Set(inverters.map(p => p.brand))).sort();
-  const moduleBrands = Array.from(new Set(moduleProducts.map(p => p.brand))).sort();
-  const storageBrands = Array.from(new Set(storages.map(p => p.brand))).sort();
+  const inverterBrands = Array.from(new Set(inverters.map(p => p.hersteller))).sort();
+  const moduleBrands = Array.from(new Set(moduleProducts.map(p => p.hersteller))).sort();
+  const storageBrands = Array.from(new Set(storages.map(p => p.hersteller))).sort();
   
   // Brands für zusätzliche Komponenten
-  const wallboxBrands = Array.from(new Set(wallboxProducts.map((p: Product) => p.brand))).sort();
-  const emsBrands = Array.from(new Set(emsProducts.map((p: Product) => p.brand))).sort();
-  const optimizerBrands = Array.from(new Set(optimizerProducts.map((p: Product) => p.brand))).sort();
-  const carportBrands = Array.from(new Set(carportProducts.map((p: Product) => p.brand))).sort();
-  const emergencyPowerBrands = Array.from(new Set(emergencyPowerProducts.map((p: Product) => p.brand))).sort();
-  const animalProtectionBrands = Array.from(new Set(animalProtectionProducts.map((p: Product) => p.brand))).sort();
+  const wallboxBrands = Array.from(new Set(wallboxProducts.map((p: Product) => p.hersteller))).sort();
+  const emsBrands = Array.from(new Set(emsProducts.map((p: Product) => p.hersteller))).sort();
+  const optimizerBrands = Array.from(new Set(optimizerProducts.map((p: Product) => p.hersteller))).sort();
+  const carportBrands = Array.from(new Set(carportProducts.map((p: Product) => p.hersteller))).sort();
+  const emergencyPowerBrands = Array.from(new Set(emergencyPowerProducts.map((p: Product) => p.hersteller))).sort();
+  const animalProtectionBrands = Array.from(new Set(animalProtectionProducts.map((p: Product) => p.hersteller))).sort();
 
-  const filteredInvModels = inverters.filter(p => !config.invBrand || p.brand === config.invBrand);
-  const currentInv = filteredInvModels.find(p => p.model === config.invModel);
-  const totalInvPowerKW = (currentInv?.power_kw || 0) * config.invQty;
+  const filteredInvModels = inverters.filter(p => !config.invBrand || p.hersteller === config.invBrand);
+  const currentInv = filteredInvModels.find(p => p.produkt_modell === config.invModel);
+  const totalInvPowerKW = (currentInv?.wr_leistung_kw || 0) * config.invQty;
 
-  const filteredStorageModels = storages.filter(p => !config.storageBrand || p.brand === config.storageBrand);
-  const currentStorage = filteredStorageModels.find(p => p.model === config.storageModel);
-  const storageModelKWh = currentStorage?.storage_kwh || 0;
+  const filteredStorageModels = storages.filter(p => !config.storageBrand || p.hersteller === config.storageBrand);
+  const currentStorage = filteredStorageModels.find(p => p.produkt_modell === config.storageModel);
+  const storageModelKWh = currentStorage?.kapazitaet_speicher_kwh || 0;
   
   // Filtered Models für zusätzliche Komponenten
-  const wallboxModels = wallboxProducts.filter((p: Product) => !config.wallboxBrand || p.brand === config.wallboxBrand);
-  const emsModels = emsProducts.filter((p: Product) => !config.emsBrand || p.brand === config.emsBrand);
-  const optimizerModels = optimizerProducts.filter((p: Product) => !config.optimizerBrand || p.brand === config.optimizerBrand);
-  const carportModels = carportProducts.filter((p: Product) => !config.carportBrand || p.brand === config.carportBrand);
-  const emergencyPowerModels = emergencyPowerProducts.filter((p: Product) => !config.emergencyPowerBrand || p.brand === config.emergencyPowerBrand);
-  const animalProtectionModels = animalProtectionProducts.filter((p: Product) => !config.animalProtectionBrand || p.brand === config.animalProtectionBrand);
+  const wallboxModels = wallboxProducts.filter((p: Product) => !config.wallboxBrand || p.hersteller === config.wallboxBrand);
+  const emsModels = emsProducts.filter((p: Product) => !config.emsBrand || p.hersteller === config.emsBrand);
+  const optimizerModels = optimizerProducts.filter((p: Product) => !config.optimizerBrand || p.hersteller === config.optimizerBrand);
+  const carportModels = carportProducts.filter((p: Product) => !config.carportBrand || p.hersteller === config.carportBrand);
+  const emergencyPowerModels = emergencyPowerProducts.filter((p: Product) => !config.emergencyPowerBrand || p.hersteller === config.emergencyPowerBrand);
+  const animalProtectionModels = animalProtectionProducts.filter((p: Product) => !config.animalProtectionBrand || p.hersteller === config.animalProtectionBrand);
 
   // Validierung Kernschritt
   const errors: string[] = [];
@@ -323,15 +392,11 @@ export default function SolarCalculator(): JSX.Element {
 
   async function finishAndBack() {
     try {
-      // Konfiguration im Backend speichern
-      const response = await fetch('/api/solar-calculator/save-configuration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-      
-      if (!response.ok) throw new Error('Fehler beim Speichern der Konfiguration');
-      
+      // Konfiguration via Electron Bridge speichern
+      const res = (window as any).solarAPI
+        ? await (window as any).solarAPI.saveConfiguration(config)
+        : { success: false };
+      if (!res?.success) throw new Error('Fehler beim Speichern der Konfiguration');
       console.log('Solar Configuration gespeichert:', config);
       navigate('/results'); // Zu Ergebnissen navigieren
     } catch (error) {
@@ -388,7 +453,7 @@ export default function SolarCalculator(): JSX.Element {
                 <label className="block text-sm mb-1">Modell</label>
                 <select value={config.moduleModel} onChange={e => setConfig(prev => ({...prev, moduleModel: e.target.value}))} className="w-full rounded border px-3 py-2">
                   <option value="">-- wählen --</option>
-                  {filteredModuleModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                  {filteredModuleModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                 </select>
               </div>
             </div>
@@ -423,7 +488,7 @@ export default function SolarCalculator(): JSX.Element {
                 <label className="block text-sm mb-1">Modell</label>
                 <select value={config.invModel} onChange={e => setConfig(prev => ({...prev, invModel: e.target.value}))} className="w-full rounded border px-3 py-2">
                   <option value="">-- wählen --</option>
-                  {filteredInvModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                  {filteredInvModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                 </select>
               </div>
               <div>
@@ -434,7 +499,7 @@ export default function SolarCalculator(): JSX.Element {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded border bg-gray-50 p-3 text-sm">
                 <div className="text-gray-600">Leistung je WR (kW)</div>
-                <div className="font-semibold text-lg">{currentInv?.power_kw ?? 0}</div>
+                <div className="font-semibold text-lg">{currentInv?.wr_leistung_kw ?? 0}</div>
               </div>
               <div className="rounded border bg-gray-50 p-3 text-sm">
                 <div className="text-gray-600">WR Gesamt (kW)</div>
@@ -462,7 +527,7 @@ export default function SolarCalculator(): JSX.Element {
                   <label className="block text-sm mb-1">Modell</label>
                   <select value={config.storageModel} onChange={e => setConfig(prev => ({...prev, storageModel: e.target.value}))} className="w-full rounded border px-3 py-2">
                     <option value="">-- wählen --</option>
-                    {filteredStorageModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                    {filteredStorageModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                   </select>
                 </div>
                 <div>
@@ -538,7 +603,7 @@ export default function SolarCalculator(): JSX.Element {
                         className="w-full rounded border px-3 py-2"
                       >
                         <option value="">-- wählen --</option>
-                        {wallboxModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                        {wallboxModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                       </select>
                     </div>
                   </div>
@@ -576,7 +641,7 @@ export default function SolarCalculator(): JSX.Element {
                         className="w-full rounded border px-3 py-2"
                       >
                         <option value="">-- wählen --</option>
-                        {emsModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                        {emsModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                       </select>
                     </div>
                   </div>
@@ -614,7 +679,7 @@ export default function SolarCalculator(): JSX.Element {
                         className="w-full rounded border px-3 py-2"
                       >
                         <option value="">-- wählen --</option>
-                        {optimizerModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                        {optimizerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                       </select>
                     </div>
                     <div>
@@ -662,7 +727,7 @@ export default function SolarCalculator(): JSX.Element {
                         className="w-full rounded border px-3 py-2"
                       >
                         <option value="">-- wählen --</option>
-                        {carportModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                        {carportModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                       </select>
                     </div>
                   </div>
@@ -700,7 +765,7 @@ export default function SolarCalculator(): JSX.Element {
                         className="w-full rounded border px-3 py-2"
                       >
                         <option value="">-- wählen --</option>
-                        {emergencyPowerModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                        {emergencyPowerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                       </select>
                     </div>
                   </div>
@@ -738,7 +803,7 @@ export default function SolarCalculator(): JSX.Element {
                         className="w-full rounded border px-3 py-2"
                       >
                         <option value="">-- wählen --</option>
-                        {animalProtectionModels.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                        {animalProtectionModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
                       </select>
                     </div>
                   </div>

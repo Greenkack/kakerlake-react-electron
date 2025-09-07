@@ -123,10 +123,24 @@ const mockBackups: BackupInfo[] = [
 ]
 
 export default function DatabaseManagement() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'tables' | 'backups' | 'maintenance'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'tables' | 'backups' | 'maintenance' | 'product-import'>('overview')
   const [isBackupRunning, setIsBackupRunning] = useState(false)
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [maintenanceResults, setMaintenanceResults] = useState<any>(null)
+  const [importPath, setImportPath] = useState('')
+  const [dryRun, setDryRun] = useState(true)
+  const [importResult, setImportResult] = useState<any>(null)
+  const [manualProduct, setManualProduct] = useState({
+    kategorie: '', hersteller: '', produkt_modell: '', preis_stück: '',
+    pv_modul_leistung: '', wr_leistung_kw: '', kapazitaet_speicher_kwh: '',
+    wirkungsgrad_prozent: '', garantie_zeit: '', ladezyklen_speicher: '',
+    mass_laenge: '', mass_breite: '', mass_gewicht_kg: '', hersteller_land: '',
+    beschreibung_info: '', eigenschaft_info: '', spezial_merkmal: '',
+    rating_null_zehn: '', image_base64: ''
+  })
+  const productCategories = [
+    'PV Modul', 'Wechselrichter', 'Batteriespeicher', 'Wallbox', 'Energiemanagementsystem', 'Leistungsoptimierer', 'Carport', 'Notstromversorgung', 'Tierabwehrschutz', 'Extrakosten'
+  ]
 
   const createBackup = async () => {
     setIsBackupRunning(true)
@@ -205,7 +219,8 @@ export default function DatabaseManagement() {
               { key: 'overview', label: '📊 Übersicht', icon: '📊' },
               { key: 'tables', label: '🗃️ Tabellen', icon: '🗃️' },
               { key: 'backups', label: '💾 Backups', icon: '💾' },
-              { key: 'maintenance', label: '🔧 Wartung', icon: '🔧' }
+              { key: 'maintenance', label: '🔧 Wartung', icon: '🔧' },
+              { key: 'product-import', label: '📥 Import/Produkte', icon: '📥' }
             ].map(tab => (
               <button
                 key={tab.key}
@@ -517,6 +532,224 @@ export default function DatabaseManagement() {
                         <input type="checkbox" className="sr-only peer" />
                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Product Import/Manual Tab */}
+            {activeTab === 'product-import' && (
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* File Import */}
+                  <div className="bg-slate-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><span>📥</span> Produkte aus Datei importieren</h3>
+                    <p className="text-slate-600 text-sm mb-3">Unterstützt: .xlsx, .csv, .json. Große Dateien werden begrenzt. Felder mit deutschen/englischen Bezeichnungen werden automatisch gemappt.</p>
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Dateipfad wählen…"
+                          value={importPath}
+                          onChange={(e) => setImportPath(e.target.value)}
+                          className="flex-1 px-3 py-2 border rounded"
+                        />
+                        <button
+                          onClick={async () => {
+                            const sys = (window as any).systemAPI
+                            if (!sys) { alert('systemAPI nicht verfügbar'); return }
+                            const res = await sys.openFileDialog([
+                              { name: 'Daten', extensions: ['xlsx', 'csv', 'json'] }
+                            ])
+                            if (!res.canceled && res.filePaths?.[0]) setImportPath(res.filePaths[0])
+                          }}
+                          className="px-3 py-2 border rounded hover:bg-slate-50"
+                        >Durchsuchen…</button>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
+                        <span>Probelauf (ohne Speichern)</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            if (!importPath) { alert('Bitte Datei auswählen'); return }
+                            const api = (window as any).importAPI
+                            if (!api) { alert('importAPI nicht verfügbar'); return }
+                            setImportResult(null)
+                            const res = await api.productsFromFile(importPath, undefined, dryRun)
+                            setImportResult(res)
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >{dryRun ? 'Analyse starten' : 'Import starten'}</button>
+                        {importResult && (
+                          <button
+                            onClick={() => setImportResult(null)}
+                            className="px-4 py-2 border rounded hover:bg-slate-50"
+                          >Zurücksetzen</button>
+                        )}
+                      </div>
+                      {importResult && (
+                        <div className={`rounded border p-3 ${importResult.success ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'}`}>
+                          <div className="font-semibold mb-1">Ergebnis</div>
+                          <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(importResult, null, 2)}</pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Manual Add */}
+                  <div className="bg-slate-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><span>✍️</span> Produkt manuell anlegen</h3>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      {/* Grunddaten */}
+                      <div className="md:col-span-3 mb-2 font-medium text-slate-700">Grunddaten</div>
+                      <label className="text-sm">Kategorie*
+                        <select className="w-full px-3 py-2 border rounded" value={manualProduct.kategorie} onChange={(e) => setManualProduct({ ...manualProduct, kategorie: e.target.value })}>
+                          <option value="">-- wählen --</option>
+                          {productCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-sm">Hersteller*
+                        <input className="w-full px-3 py-2 border rounded" placeholder="z.B. Ja Solar" value={manualProduct.hersteller} onChange={(e) => setManualProduct({ ...manualProduct, hersteller: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Produktmodell*
+                        <input className="w-full px-3 py-2 border rounded" placeholder="z.B. JAM72S30 540/MR" value={manualProduct.produkt_modell} onChange={(e) => setManualProduct({ ...manualProduct, produkt_modell: e.target.value })} />
+                      </label>
+
+                      {/* Preise */}
+                      <div className="md:col-span-3 mb-2 font-medium text-slate-700 mt-4">Preis</div>
+                      <label className="text-sm">Preis (€/Stück)
+                        <input type="number" step="0.01" className="w-full px-3 py-2 border rounded" placeholder="0.00" value={manualProduct.preis_stück} onChange={(e) => setManualProduct({ ...manualProduct, preis_stück: e.target.value })} />
+                      </label>
+
+                      {/* Leistungsdaten */}
+                      <div className="md:col-span-3 mb-2 font-medium text-slate-700 mt-4">Technische Daten</div>
+                      <label className="text-sm">PV Modulleistung (Wp)
+                        <input type="number" className="w-full px-3 py-2 border rounded" placeholder="540" value={manualProduct.pv_modul_leistung} onChange={(e) => setManualProduct({ ...manualProduct, pv_modul_leistung: e.target.value })} />
+                      </label>
+                      <label className="text-sm">WR-Leistung (kW)
+                        <input type="number" step="0.1" className="w-full px-3 py-2 border rounded" placeholder="5.0" value={manualProduct.wr_leistung_kw} onChange={(e) => setManualProduct({ ...manualProduct, wr_leistung_kw: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Speicherkapazität (kWh)
+                        <input type="number" step="0.1" className="w-full px-3 py-2 border rounded" placeholder="10.0" value={manualProduct.kapazitaet_speicher_kwh} onChange={(e) => setManualProduct({ ...manualProduct, kapazitaet_speicher_kwh: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Wirkungsgrad (%)
+                        <input type="number" step="0.1" className="w-full px-3 py-2 border rounded" placeholder="20.9" value={manualProduct.wirkungsgrad_prozent} onChange={(e) => setManualProduct({ ...manualProduct, wirkungsgrad_prozent: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Ladezyklen Speicher
+                        <input type="number" className="w-full px-3 py-2 border rounded" placeholder="6000" value={manualProduct.ladezyklen_speicher} onChange={(e) => setManualProduct({ ...manualProduct, ladezyklen_speicher: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Garantie (Jahre)
+                        <input type="number" className="w-full px-3 py-2 border rounded" placeholder="25" value={manualProduct.garantie_zeit} onChange={(e) => setManualProduct({ ...manualProduct, garantie_zeit: e.target.value })} />
+                      </label>
+
+                      {/* Abmessungen */}
+                      <div className="md:col-span-3 mb-2 font-medium text-slate-700 mt-4">Abmessungen & Gewicht</div>
+                      <label className="text-sm">Länge (m)
+                        <input type="number" step="0.001" className="w-full px-3 py-2 border rounded" placeholder="2.279" value={manualProduct.mass_laenge} onChange={(e) => setManualProduct({ ...manualProduct, mass_laenge: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Breite (m)
+                        <input type="number" step="0.001" className="w-full px-3 py-2 border rounded" placeholder="1.134" value={manualProduct.mass_breite} onChange={(e) => setManualProduct({ ...manualProduct, mass_breite: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Gewicht (kg)
+                        <input type="number" step="0.1" className="w-full px-3 py-2 border rounded" placeholder="27.5" value={manualProduct.mass_gewicht_kg} onChange={(e) => setManualProduct({ ...manualProduct, mass_gewicht_kg: e.target.value })} />
+                      </label>
+
+                      {/* Zusatzinfos */}
+                      <div className="md:col-span-3 mb-2 font-medium text-slate-700 mt-4">Zusatzinformationen</div>
+                      <label className="text-sm">Herstellerland
+                        <input className="w-full px-3 py-2 border rounded" placeholder="China" value={manualProduct.hersteller_land} onChange={(e) => setManualProduct({ ...manualProduct, hersteller_land: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Spezial Merkmal
+                        <input className="w-full px-3 py-2 border rounded" placeholder="All-Black, Bifazial, etc." value={manualProduct.spezial_merkmal} onChange={(e) => setManualProduct({ ...manualProduct, spezial_merkmal: e.target.value })} />
+                      </label>
+                      <label className="text-sm">Rating (0-10)
+                        <input type="number" min="0" max="10" step="0.1" className="w-full px-3 py-2 border rounded" placeholder="8.5" value={manualProduct.rating_null_zehn} onChange={(e) => setManualProduct({ ...manualProduct, rating_null_zehn: e.target.value })} />
+                      </label>
+
+                      {/* Beschreibungen */}
+                      <label className="text-sm md:col-span-3">Beschreibung/Info
+                        <textarea rows={2} className="w-full px-3 py-2 border rounded" placeholder="Kurze Produktbeschreibung..." value={manualProduct.beschreibung_info} onChange={(e) => setManualProduct({ ...manualProduct, beschreibung_info: e.target.value })} />
+                      </label>
+                      <label className="text-sm md:col-span-3">Eigenschaft Info
+                        <textarea rows={2} className="w-full px-3 py-2 border rounded" placeholder="Technische Eigenschaften..." value={manualProduct.eigenschaft_info} onChange={(e) => setManualProduct({ ...manualProduct, eigenschaft_info: e.target.value })} />
+                      </label>
+
+                      {/* Produktbild Upload */}
+                      <div className="md:col-span-3 mb-2 font-medium text-slate-700 mt-4">Produktbild</div>
+                      <div className="md:col-span-3 p-3 border-2 border-dashed border-slate-300 rounded-lg">
+                        <div className="text-center">
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              if (file.size > 2 * 1024 * 1024) { alert('Bild zu groß (max 2MB)'); return }
+                              const reader = new FileReader()
+                              reader.onload = (ev) => {
+                                const base64 = ev.target?.result as string
+                                setManualProduct({ ...manualProduct, image_base64: base64.split(',')[1] }) // nur base64 ohne data:... prefix
+                              }
+                              reader.readAsDataURL(file)
+                            }}
+                            className="mb-2"
+                          />
+                          <p className="text-sm text-slate-600">JPG, PNG, WebP (max 2MB)</p>
+                          {manualProduct.image_base64 && <p className="text-xs text-green-600 mt-1">✓ Bild geladen</p>}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between mt-6">
+                      <button
+                        onClick={() => setManualProduct({
+                          kategorie: '', hersteller: '', produkt_modell: '', preis_stück: '',
+                          pv_modul_leistung: '', wr_leistung_kw: '', kapazitaet_speicher_kwh: '',
+                          wirkungsgrad_prozent: '', garantie_zeit: '', ladezyklen_speicher: '',
+                          mass_laenge: '', mass_breite: '', mass_gewicht_kg: '', hersteller_land: '',
+                          beschreibung_info: '', eigenschaft_info: '', spezial_merkmal: '',
+                          rating_null_zehn: '', image_base64: ''
+                        })}
+                        className="px-4 py-2 border border-slate-300 text-slate-700 rounded hover:bg-slate-50"
+                      >Felder leeren</button>
+                      <button
+                        onClick={async () => {
+                          if (!manualProduct.kategorie || !manualProduct.produkt_modell || !manualProduct.hersteller) { 
+                            alert('Kategorie, Produktmodell und Hersteller sind Pflicht') 
+                            return 
+                          }
+                          const api = (window as any).productsAPI
+                          if (!api) { alert('productsAPI nicht verfügbar'); return }
+                          
+                          // Nur nicht-leere Felder senden
+                          const productData: any = {}
+                          for (const [key, value] of Object.entries(manualProduct)) {
+                            if (value && String(value).trim() !== '') {
+                              productData[key] = value
+                            }
+                          }
+                          
+                          const res = await api.addSingle(productData)
+                          if (res?.success) { 
+                            alert(`Produkt gespeichert (ID: ${res.id})`)
+                            // Formular zurücksetzen
+                            setManualProduct({
+                              kategorie: '', hersteller: '', produkt_modell: '', preis_stück: '',
+                              pv_modul_leistung: '', wr_leistung_kw: '', kapazitaet_speicher_kwh: '',
+                              wirkungsgrad_prozent: '', garantie_zeit: '', ladezyklen_speicher: '',
+                              mass_laenge: '', mass_breite: '', mass_gewicht_kg: '', hersteller_land: '',
+                              beschreibung_info: '', eigenschaft_info: '', spezial_merkmal: '',
+                              rating_null_zehn: '', image_base64: ''
+                            })
+                          } else { 
+                            alert('Fehler: ' + (res?.error || 'Unbekannt')) 
+                          }
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                      >💾 Produkt speichern</button>
                     </div>
                   </div>
                 </div>

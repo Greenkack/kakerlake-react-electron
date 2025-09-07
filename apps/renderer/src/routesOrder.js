@@ -2,29 +2,23 @@
 // Zentrale, lineare Reihenfolge für "vorherige"/"nächste"
 export const ROUTE_ORDER = [
     "/", // Hauptmenü / Mainscreen
-    "/home", // Hauptmenü / Mainscreen
-    "/project/mode", // 1. Anlagenmodus wählen
-    "/project/customer", // 2. Kundendaten
-    "/project/building", // 3. Gebäudedaten  
-    "/project/demand", // 4. Bedarfsanalyse
-    "/project/needs", // 5. Zusätzliche Angaben (alt)
-    "/project/options", // 6. Zusätzliche Optionen
-    "/project/results", // 7. Ergebnisse
-    "/calc/menu", // Untermenü Berechnungen (alt)
-    "/calc/customer", // 1. Kundendaten (alt)
-    "/calc/needs", // 2. Bedarfsanalyse (alt)
-    "/calc/building", // 3. Gebäudedaten (alt)
-    "/calc/options", // 4. Zusätzliche Angaben (alt)
-    "/calc/solar", // Solar Calculator (alt)
-    "/calc/heatpump", // Wärmepumpe Simulator (alt)
-    "/results", // Ergebnisse der Analyse (alt)
-    "/solar", // Solar Calculator
-    "/heatpump", // Wärmepumpe Simulator
+    "/calc/menu", // Untermenü Berechnungen
+    "/calc/customer", // 1. Kundendaten
+    "/calc/needs", // 2. Bedarfsanalyse
+    "/calc/building", // 3. Gebäudedaten
+    "/calc/options", // 4. Zusätzliche Angaben
+    "/calc/solar", // Solar Calculator
+    "/calc/heatpump", // Wärmepumpe Simulator
+    "/results", // Ergebnisse der Analyse
     "/dashboard", // Dashboard
     "/documents", // Dokumentenerstellung
-    "/crm", // CRM Hauptmenü
+    "/project/mode",
+    "/project/demand",
+    "/project/needs",
+    "/project/results",
+    "/crm/menu", // CRM Hauptmenü (Platzhalter)
     "/planning/menu", // Planungen (Platzhalter)
-    "/admin", // Admin Login
+    "/admin/login", // Admin Login (Platzhalter)
 ];
 export function indexOfRoute(path) {
     const idx = ROUTE_ORDER.indexOf(path);
@@ -32,28 +26,23 @@ export function indexOfRoute(path) {
 }
 export function nextRoute(path) {
     const i = indexOfRoute(path);
-    const n = i < ROUTE_ORDER.length - 1 ? ROUTE_ORDER[i + 1] : null;
-    console.log('[routesOrder] nextRoute', { path, index: i, next: n });
-    return n;
+    return i < ROUTE_ORDER.length - 1 ? ROUTE_ORDER[i + 1] : null;
 }
 export function prevRoute(path) {
     const i = indexOfRoute(path);
-    const p = i > 0 ? ROUTE_ORDER[i - 1] : null;
-    console.log('[routesOrder] prevRoute', { path, index: i, prev: p });
-    return p;
+    return i > 0 ? ROUTE_ORDER[i - 1] : null;
 }
 // Für "Menü"-Button: wohin zurück?
 export function menuRouteFor(path) {
     if (path.startsWith("/calc"))
         return "/calc/menu";
     if (path.startsWith("/crm"))
-        return "/crm";
+        return "/crm/menu";
     if (path.startsWith("/planning"))
         return "/planning/menu";
     if (path.startsWith("/admin"))
-        return "/admin";
+        return "/admin/login";
     if (path.startsWith("/project"))
         return "/home";
-    console.log('[routesOrder] menuRouteFor fallback /home', { path });
-    return "/home";
+    return "/";
 }

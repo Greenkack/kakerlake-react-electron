@@ -1,20 +1,21 @@
 {
-  "name": "main",
+  "name": "@kakerlake/main",
   "private": true,
-  "version": "0.1.0",
-  "type": "commonjs",
-  "main": "dist/main.cjs",
+  "version": "0.0.0",
+  "main": "dist/main.js",
   "scripts": {
-  "dev": "concurrently -k \"pnpm:watch\" \"pnpm:dev:electron\"",
-  "watch": "tsup src/main.ts --format cjs --sourcemap --out-dir dist --watch",
-  "build": "tsup src/main.ts --format cjs --sourcemap --out-dir dist",
-  "dev:electron": "wait-on http://localhost:5173 && \"..\\..\\node_modules\\.pnpm\\electron@31.7.7\\node_modules\\electron\\dist\\electron.exe\" ."
+    "watch": "tsup --watch --config tsup.config.ts",
+    "watch:preload": "tsup --watch --config tsup.config.ts",
+  "dev:electron": "wait-on -t 600000 http-get://127.0.0.1:5174 && electron .",
+    "dev": "concurrently -k \"npm run watch --prefix .\" \"npm run watch:preload --prefix .\" \"npm run dev:electron --prefix .\"",
+    "build": "tsup --config tsup.config.ts"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
     "electron": "31.7.7",
     "tsup": "^8.5.0",
-    "typescript": "^5.5.4",
-    "wait-on": "^7.2.0"
+    "wait-on": "^8.0.4"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
   }
 }

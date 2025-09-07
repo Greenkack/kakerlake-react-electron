@@ -1,3 +1,9 @@
 packages:
   - apps/*
   - packages/*
+
+ignoredBuiltDependencies:
+  - electron
+
+onlyBuiltDependencies:
+  - esbuild

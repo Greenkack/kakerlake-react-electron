@@ -1,20 +1,21 @@
 {
-  "name": "kakerlake-react-electron",
+  "name": "kakerlake",
   "private": true,
-  "version": "0.1.0",
-  "packageManager": "pnpm@10.15.1",
+  "packageManager": "yarn@4.4.1",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "pnpm -r dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "core:test": "pnpm -C packages/core build && node packages/core/dist/test_compute.js"
+  "dev": "concurrently -k \"yarn --cwd apps/renderer dev\" \"wait-on -t 600000 http-get://127.0.0.1:5174 && yarn --cwd apps/main dev\"",
+    "build": "yarn --cwd packages/core build && yarn --cwd apps/renderer build && yarn --cwd apps/main build",
+    "dev:renderer": "yarn --cwd apps/renderer dev",
+    "dev:main": "yarn --cwd apps/main run dev"
   },
-  "dependencies": {
-    "xlsx": "^0.18.5"
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "31.7.7",
+    "wait-on": "^8.0.4"
   }
 }

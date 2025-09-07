@@ -82,6 +82,8 @@ def _migrate_product_table_columns(conn: sqlite3.Connection):
         "created_at": "TEXT", "updated_at": "TEXT", 
         "datasheet_link_db_path": "TEXT",
         "additional_cost_netto": "REAL",
+    # Optionaler Firmenbezug (wird u.a. in list_products als Filter genutzt)
+    "company_id": "INTEGER",
         # NEU: explizite Modul-Detailspalten, damit Seite 4 echte Werte hat
         "cell_technology": "TEXT",          # z.B. Monokristallin N-Type / TOPCon / HJT / PERC
         "module_structure": "TEXT",         # z.B. Glas-Glas / Glas-Folie
@@ -149,7 +151,7 @@ def add_product(product_data: Dict[str, Any]) -> Optional[int]:
         "id", "category", "model_name", "brand", "price_euro", "capacity_w", "storage_power_kw", "power_kw",
         "max_cycles", "warranty_years", "length_m", "width_m", "weight_kg", "efficiency_percent", "origin_country",
         "description", "pros", "cons", "rating", "image_base64", "created_at", "updated_at", "datasheet_link_db_path",
-        "additional_cost_netto",
+    "additional_cost_netto", "company_id",
         # NEU: Modul-Detailfelder
         "cell_technology", "module_structure", "cell_type", "version", "module_warranty_text"
     , "labor_hours"
@@ -161,10 +163,14 @@ def add_product(product_data: Dict[str, Any]) -> Optional[int]:
         if col_name == 'id': continue 
         if col_name in product_data: insert_data[col_name] = product_data[col_name]
         else:
-            if col_name == 'created_at' or col_name == 'updated_at': insert_data[col_name] = now_iso
-            elif col_name in ["price_euro", "capacity_w", "storage_power_kw", "power_kw", "length_m", "width_m", "weight_kg", "efficiency_percent", "rating", "additional_cost_netto"]: insert_data[col_name] = 0.0
-            elif col_name in ["max_cycles", "warranty_years"]: insert_data[col_name] = 0
-            else: insert_data[col_name] = None 
+            # 0-Werte sollen als "ignoriert" gelten -> NULL speichern
+            if col_name in ['category', 'model_name']:
+                # Pflichtfelder werden vorausgesetzt, hier kein Ersatz
+                insert_data[col_name] = product_data.get(col_name)
+            elif col_name in ['created_at', 'updated_at']:
+                insert_data[col_name] = now_iso
+            else:
+                insert_data[col_name] = None 
     cursor.execute("SELECT id FROM products WHERE model_name = ?", (insert_data['model_name'],))
     if cursor.fetchone(): print(f"product_db.add_product: Fehler - Produkt mit Modellname '{insert_data['model_name']}' existiert bereits."); conn.close(); return None
     fields = ', '.join(insert_data.keys()); placeholders = ', '.join(['?'] * len(insert_data))

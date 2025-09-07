@@ -10,6 +10,7 @@ import HeatpumpSim from "./routes/HeatpumpSimulator";
 import PdfHubReal from "./routes/PdfHub";
 import CRMMenuReal from "./routes/CRM/Menu";
 import AdminRouter from "./routes/Admin/index";
+import { ProjectProvider } from "./lib/projectContext";
 
 function App() {
   return (
@@ -24,6 +25,8 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/project/*" element={<ProjectWizard />} />
           <Route path="/solar" element={<SolarCalc />} />
+          {/* Alias für Menü-Link aus App.tsx */}
+          <Route path="/calc/solar" element={<SolarCalc />} />
           <Route path="/heatpump" element={<HeatpumpSim />} />
           <Route path="/pdf/*" element={<PdfHubReal />} />
           <Route path="/crm" element={<CRMMenuReal />} />
@@ -197,7 +200,9 @@ function NotFound() {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <ProjectProvider>
+        <App />
+      </ProjectProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

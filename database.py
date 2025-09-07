@@ -28,6 +28,38 @@ if not os.path.exists(CUSTOMER_DOCS_BASE_DIR):
     except OSError as e:
         print(f"DB: FEHLER beim Erstellen des Kunden-Dokumente Verzeichnisses '{CUSTOMER_DOCS_BASE_DIR}': {e}")
 
+# --- Minimale DB-Helfer (Kompatibilität) ---
+def get_db_connection() -> Optional[sqlite3.Connection]:
+    """Stellt eine SQLite-Verbindung zur Hauptdatenbank her (Row-Factory aktiviert).
+
+    Diese Funktion wird von product_db.py und Brücken verwendet und kann in älteren
+    Ständen fehlen. Hiermit wird die Produkt-CRUD wieder funktionsfähig.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.row_factory = sqlite3.Row  # komfortabler Zugriff per Spaltenname
+        except Exception:
+            pass
+        return conn
+    except Exception as e:
+        print(f"DB: get_db_connection fehlgeschlagen: {e}")
+        return None
+
+def init_db(conn: Optional[sqlite3.Connection] = None) -> Optional[sqlite3.Connection]:
+    """Optionale Initialisierung. Gibt eine Verbindung zurück.
+
+    product_db.create_product_table() kümmert sich um die 'products'-Tabelle.
+    Diese Funktion existiert primär als Kompatibilitäts-Stubs für Aufrufer,
+    die init_db erwarten.
+    """
+    try:
+        _conn = conn or get_db_connection()
+        return _conn
+    except Exception as e:
+        print(f"DB: init_db Fehler: {e}")
+        return None
+
 # --- CRM Kunden-Dokumente (Kundenakte) Helper auf Modulebene ---
 def _create_customer_documents_table(conn: sqlite3.Connection) -> None:
     try:
