@@ -81,8 +81,8 @@ async function create() {
 		},
 	});
 
-	// Try multiple dev ports (5173–5178) to match Vite's fallback behavior
-	const ports = [5173, 5174, 5175, 5176, 5177, 5178];
+	// Try multiple dev ports (5174 first, then 5173–5178) to match Vite's fallback behavior
+	const ports = [5174, 5173, 5175, 5176, 5177, 5178];
 	let loaded = false;
 	for (const p of ports) {
 		try {

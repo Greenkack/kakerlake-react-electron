@@ -10,6 +10,7 @@ import HeatpumpSim from "./routes/HeatpumpSimulator";
 import PdfHubReal from "./routes/PdfHub";
 import CRMMenuReal from "./routes/CRM/Menu";
 import AdminRouter from "./routes/Admin/index";
+import Results from "./routes/Results";
 import { ProjectProvider } from "./lib/projectContext";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/solar" element={<SolarCalc />} />
           {/* Alias für Menü-Link aus App.tsx */}
           <Route path="/calc/solar" element={<SolarCalc />} />
+          <Route path="/results" element={<Results />} />
           <Route path="/heatpump" element={<HeatpumpSim />} />
           <Route path="/pdf/*" element={<PdfHubReal />} />
           <Route path="/crm" element={<CRMMenuReal />} />

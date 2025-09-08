@@ -12,8 +12,31 @@ from pathlib import Path
 class SolarCalculatorProductBridge:
     """Bridge zwischen React Frontend und Python Produktdatenbank"""
     
-    def __init__(self, db_path: str = "data/app_data.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: str = None):
+        # Use the same database path as the React/Electron app
+        if db_path is None:
+            import os
+            
+            # Use the same path logic as React app connection.ts
+            if os.name == 'nt':  # Windows
+                user_data = os.environ.get('APPDATA', '')
+            else:  # macOS/Linux
+                user_data = os.environ.get('HOME', '')
+                if user_data:
+                    user_data = os.path.join(user_data, '.local', 'share')
+            
+            if user_data:
+                db_dir = os.path.join(user_data, 'kakerlake', 'data')
+                os.makedirs(db_dir, exist_ok=True)
+                self.db_path = os.path.join(db_dir, 'app.sqlite')
+            else:
+                # Fallback to local data directory
+                db_dir = 'data'
+                os.makedirs(db_dir, exist_ok=True)
+                self.db_path = os.path.join(db_dir, 'app.sqlite')
+        else:
+            self.db_path = db_path
+            
         # Standardisierte Produkt-Key-Reihenfolge (deutsch) – muss app-weit konsistent sein
         self._std_keys: Tuple[str, ...] = (
             'id', 'kategorie', 'produkt_modell', 'hersteller', 'preis_stück',
@@ -24,38 +47,45 @@ class SolarCalculatorProductBridge:
         )
         
     def get_connection(self):
-        """SQLite Verbindung"""
-        return sqlite3.connect(self.db_path)
+        """Get connection to React database using dynamic path resolution"""
+        import sqlite3
+        import os
+        
+        # Use the same path logic as React app
+        if os.name == 'nt':  # Windows
+            user_data = os.environ.get('APPDATA', '')
+        else:  # macOS/Linux
+            user_data = os.environ.get('HOME', '')
+            if user_data:
+                user_data = os.path.join(user_data, '.local', 'share')
+        
+        if user_data:
+            db_dir = os.path.join(user_data, 'kakerlake', 'data')
+            os.makedirs(db_dir, exist_ok=True)
+            db_path = os.path.join(db_dir, 'app.sqlite')
+        else:
+            # Fallback to local data directory
+            db_path = os.path.join('data', 'app.sqlite')
+            os.makedirs('data', exist_ok=True)
+        
+        return sqlite3.connect(db_path)
     
     def get_pv_manufacturers(self) -> List[str]:
         """Alle PV Modul Hersteller laden"""
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
-            # Prüfe erst products_complete, dann fallback auf products
-            try:
-                cursor.execute("""
-                    SELECT DISTINCT hersteller 
-                    FROM products_complete 
-                    WHERE kategorie = 'PV Modul' 
-                    ORDER BY hersteller
-                """)
-                manufacturers = [row[0] for row in cursor.fetchall()]
-                if manufacturers:
-                    return manufacturers
-            except:
-                pass
-                
-            # Fallback auf alte products Tabelle
+            # Use React schema: products table with 'brand' and 'category' columns
             cursor.execute("""
-                SELECT DISTINCT manufacturer 
+                SELECT DISTINCT brand 
                 FROM products 
-                WHERE category LIKE '%Modul%' OR category LIKE '%PV%'
-                ORDER BY manufacturer
+                WHERE (category LIKE '%PV%' OR category LIKE '%modul%' OR category LIKE '%Modul%' OR category = 'PV Modul' OR category = 'pv_modul' OR category = 'PV_Modul' OR category = 'modul' OR category = 'Modul')
+                AND brand IS NOT NULL AND brand != ''
+                ORDER BY brand
             """)
-            return [row[0] for row in cursor.fetchall()]
-        except Exception as e:
-            print(f"Error loading manufacturers: {e}")
+            return [row[0] for row in cursor.fetchall() if row[0]]
+        except Exception:
+            # Return empty list on error without printing to stdout
             return []
         finally:
             conn.close()
@@ -145,7 +175,7 @@ class SolarCalculatorProductBridge:
                 price = pick('price_euro', 'preis', 'preis_stück', 'preis_stueck', default=0.0)
                 capacity_w = pick('capacity_w', 'pv_modul_leistung', 'leistung_w', default=None)
                 power_kw = pick('power_kw', 'wr_leistung_kw', default=None)
-                storage_kwh = pick('storage_kwh', 'kapazitaet_speicher_kwh', default=None)
+                storage_kwh = pick('storage_kwh', 'storage_power_kw', 'kapazitaet_speicher_kwh', default=None)
                 eff = pick('efficiency_percent', 'wirkungsgrad_prozent', default=None)
                 warranty = pick('warranty_years', 'garantie_zeit', default=None)
                 origin = pick('origin_country', 'hersteller_land', default=None)
@@ -165,9 +195,8 @@ class SolarCalculatorProductBridge:
                 if power_kw is not None and str(power_kw).strip() != '':
                     mapped['power_kw'] = float(power_kw)
                 if storage_kwh is not None and str(storage_kwh).strip() != '':
-                    # In products Tabelle: storage_power_kw / power_kw wird genutzt; legen in power_kw ab, wenn category Speicher
-                    if str(mapped['category']).lower().startswith('batterie') or 'speicher' in str(mapped['category']).lower():
-                        mapped['power_kw'] = float(storage_kwh)
+                    # Store as storage_power_kw in database for React schema compatibility
+                    mapped['storage_power_kw'] = float(storage_kwh)
                 if eff is not None and str(eff).strip() != '':
                     mapped['efficiency_percent'] = float(eff)
                 if warranty is not None and str(warranty).strip() != '':
@@ -193,39 +222,123 @@ class SolarCalculatorProductBridge:
         if dry_run:
             return {"success": True, "dry_run": True, "rows": len(mapped_rows)}
 
-        # Persistenz
+        # Persistenz - Write directly to React database instead of using product_db
         created = 0
         updated = 0
         skipped = 0
         errors: List[str] = []
+        
+        # Capture stdout to prevent print statements from corrupting JSON output
+        import sys
+        from io import StringIO
+        
+        old_stdout = sys.stdout
+        
         try:
-            import product_db  # type: ignore
-        except Exception as e:
-            return {"success": False, "error": f"product_db nicht verfügbar: {e}"}
-
-        for item in mapped_rows:
-            try:
-                # Wenn Produkt existiert (model_name), dann Update, sonst Insert
-                existing = None
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Ensure products table exists with React schema
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category TEXT NOT NULL,
+                    model_name TEXT NOT NULL UNIQUE,
+                    brand TEXT,
+                    price_euro REAL DEFAULT 0,
+                    capacity_w REAL,
+                    storage_power_kw REAL,
+                    power_kw REAL,
+                    max_cycles INTEGER,
+                    warranty_years INTEGER,
+                    length_m REAL,
+                    width_m REAL,
+                    weight_kg REAL,
+                    efficiency_percent REAL,
+                    origin_country TEXT,
+                    description TEXT DEFAULT '',
+                    pros TEXT DEFAULT '',
+                    cons TEXT DEFAULT '',
+                    rating INTEGER,
+                    image_base64 TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    datasheet_link_db_path TEXT,
+                    additional_cost_netto REAL,
+                    company_id INTEGER,
+                    cell_technology TEXT,
+                    module_structure TEXT,
+                    cell_type TEXT,
+                    version TEXT,
+                    module_warranty_text TEXT,
+                    labor_hours REAL
+                )
+            ''')
+            
+            for item in mapped_rows:
+                # Capture stdout for each database operation
+                sys.stdout = StringIO()
                 try:
-                    existing = product_db.get_product_by_model_name(item['model_name'])
-                except Exception:
-                    existing = None
-                if existing:
-                    pid = int(existing.get('id'))
-                    ok = product_db.update_product(pid, item)
-                    updated += 1 if ok else 0
-                    if not ok:
-                        skipped += 1
-                else:
-                    new_id = product_db.add_product(item)
-                    if new_id:
-                        created += 1
+                    # Check if product exists by model_name
+                    cursor.execute('SELECT id FROM products WHERE model_name = ?', (item['model_name'],))
+                    existing = cursor.fetchone()
+                    
+                    if existing:
+                        # Update existing product
+                        product_id = existing[0]
+                        update_sql = '''
+                            UPDATE products SET
+                                category = ?, brand = ?, price_euro = ?, capacity_w = ?,
+                                storage_power_kw = ?, power_kw = ?, max_cycles = ?, warranty_years = ?,
+                                length_m = ?, width_m = ?, weight_kg = ?, efficiency_percent = ?,
+                                origin_country = ?, description = ?, pros = ?, cons = ?,
+                                rating = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        '''
+                        cursor.execute(update_sql, (
+                            item.get('category', ''), item.get('brand', ''), item.get('price_euro', 0),
+                            item.get('capacity_w'), item.get('storage_power_kw'), item.get('power_kw'),
+                            item.get('max_cycles'), item.get('warranty_years'),
+                            item.get('length_m'), item.get('width_m'), item.get('weight_kg'),
+                            item.get('efficiency_percent'), item.get('origin_country', ''), 
+                            item.get('description', ''), item.get('pros', ''), 
+                            item.get('cons', ''), item.get('rating'), product_id
+                        ))
+                        updated += 1
                     else:
-                        skipped += 1
-            except Exception as e:
-                errors.append(str(e))
-                skipped += 1
+                        # Insert new product
+                        insert_sql = '''
+                            INSERT INTO products (
+                                category, model_name, brand, price_euro, capacity_w,
+                                storage_power_kw, power_kw, max_cycles, warranty_years,
+                                length_m, width_m, weight_kg, efficiency_percent,
+                                origin_country, description, pros, cons, rating, 
+                                created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        '''
+                        cursor.execute(insert_sql, (
+                            item.get('category', ''), item.get('model_name', ''), item.get('brand', ''),
+                            item.get('price_euro', 0), item.get('capacity_w'), item.get('storage_power_kw'),
+                            item.get('power_kw'), item.get('max_cycles'), item.get('warranty_years'),
+                            item.get('length_m'), item.get('width_m'), item.get('weight_kg'),
+                            item.get('efficiency_percent'), item.get('origin_country', ''), 
+                            item.get('description', ''), item.get('pros', ''), 
+                            item.get('cons', ''), item.get('rating')
+                        ))
+                        created += 1
+                        
+                except Exception as e:
+                    errors.append(f"Error processing {item.get('model_name', 'unknown')}: {str(e)}")
+                    skipped += 1
+                finally:
+                    sys.stdout = old_stdout  # Restore stdout after each operation
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            sys.stdout = old_stdout  # Ensure stdout is always restored
+            return {"success": False, "error": f"Database error: {e}"}
 
         return {"success": True, "created": created, "updated": updated, "skipped": skipped, "errors": errors[:5]}
 
@@ -551,64 +664,17 @@ class SolarCalculatorProductBridge:
         """PV Module nach Hersteller mit allen Eigenschaften"""
         conn = self.get_connection()
         try:
-            # Row-Factory erlaubt Zugriff per Spaltennamen
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            # Erst products_complete versuchen
-            try:
-                # Hol alle geforderten Spalten in Zielreihenfolge; fehlende Spalten werden später genullt
-                cursor.execute(
-                    """
-                    SELECT 
-                        id, 
-                        kategorie, 
-                        produkt_modell, 
-                        hersteller, 
-                        preis_stück, 
-                        pv_modul_leistung, 
-                        kapazitaet_speicher_kwh, 
-                        wr_leistung_kw, 
-                        ladezyklen_speicher, 
-                        garantie_zeit, 
-                        mass_laenge, 
-                        mass_breite, 
-                        mass_gewicht_kg, 
-                        wirkungsgrad_prozent, 
-                        hersteller_land, 
-                        beschreibung_info, 
-                        eigenschaft_info, 
-                        spezial_merkmal, 
-                        rating_null_zehn, 
-                        image_base64, 
-                        created_at, 
-                        updated_at
-                    FROM products_complete 
-                    WHERE kategorie = 'PV Modul' AND hersteller = ?
-                    ORDER BY produkt_modell
-                    """,
-                    [manufacturer],
-                )
-
-                results: List[Dict[str, Any]] = []
-                for row in cursor.fetchall():
-                    d = dict(row)
-                    std = self._to_standard_product_dict('PV Modul', manufacturer, d)
-                    results.append(std)
-
-                if results:
-                    return results
-            except Exception as e:
-                print(f"products_complete error: {e}")
-            
-            # Fallback auf products Tabelle
+            # Use React schema: products table with standardized columns
             cursor.execute(
                 """
-                SELECT id, category, model_name, manufacturer, price_euro, 
+                SELECT id, category, model_name, brand, price_euro, 
                        capacity_w, power_kw, efficiency_percent, length_m, width_m, weight_kg,
                        warranty_years, origin_country, description, created_at, updated_at
                 FROM products 
-                WHERE manufacturer = ? AND (category LIKE '%Modul%' OR category LIKE '%PV%')
+                WHERE brand = ? AND (category LIKE '%PV%' OR category LIKE '%modul%' OR category LIKE '%Modul%' OR category = 'pv_modul' OR category = 'PV_Modul' OR category = 'modul' OR category = 'Modul')
                 ORDER BY model_name
                 """,
                 [manufacturer],
@@ -622,8 +688,8 @@ class SolarCalculatorProductBridge:
 
             return results
             
-        except Exception as e:
-            print(f"Error loading models for {manufacturer}: {e}")
+        except Exception:
+            # Return empty list on error without printing to stdout
             return []
         finally:
             conn.close()
@@ -633,30 +699,15 @@ class SolarCalculatorProductBridge:
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
-            
-            # products_complete zuerst
-            try:
-                cursor.execute("""
-                    SELECT DISTINCT hersteller 
-                    FROM products_complete 
-                    WHERE kategorie = 'Wechselrichter' 
-                    ORDER BY hersteller
-                """)
-                manufacturers = [row[0] for row in cursor.fetchall()]
-                if manufacturers:
-                    return manufacturers
-            except:
-                pass
-            
-            # Fallback
             cursor.execute("""
-                SELECT DISTINCT manufacturer 
+                SELECT DISTINCT brand 
                 FROM products 
                 WHERE category LIKE '%Wechselrichter%' OR category LIKE '%Inverter%'
-                ORDER BY manufacturer
+                AND brand IS NOT NULL AND brand != ''
+                ORDER BY brand
             """)
-            return [row[0] for row in cursor.fetchall()]
-        except:
+            return [row[0] for row in cursor.fetchall() if row[0]]
+        except Exception:
             return []
         finally:
             conn.close()
@@ -668,42 +719,14 @@ class SolarCalculatorProductBridge:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            # products_complete
-            try:
-                cursor.execute(
-                    """
-                    SELECT 
-                        id, kategorie, produkt_modell, hersteller, preis_stück,
-                        pv_modul_leistung, kapazitaet_speicher_kwh, wr_leistung_kw, ladezyklen_speicher,
-                        garantie_zeit, mass_laenge, mass_breite, mass_gewicht_kg, wirkungsgrad_prozent,
-                        hersteller_land, beschreibung_info, eigenschaft_info, spezial_merkmal,
-                        rating_null_zehn, image_base64, created_at, updated_at
-                    FROM products_complete 
-                    WHERE kategorie = 'Wechselrichter' AND hersteller = ?
-                    ORDER BY produkt_modell
-                    """,
-                    [manufacturer],
-                )
-
-                results: List[Dict[str, Any]] = []
-                for row in cursor.fetchall():
-                    d = dict(row)
-                    std = self._to_standard_product_dict('Wechselrichter', manufacturer, d)
-                    results.append(std)
-
-                if results:
-                    return results
-            except:
-                pass
-            
-            # Fallback
+            # Use React schema: products table with standardized columns
             cursor.execute(
                 """
-                SELECT id, category, model_name, manufacturer, price_euro, 
+                SELECT id, category, model_name, brand, price_euro, 
                        capacity_w, power_kw, efficiency_percent, length_m, width_m, weight_kg,
                        warranty_years, origin_country, description, created_at, updated_at
                 FROM products 
-                WHERE manufacturer = ? AND category LIKE '%Wechselrichter%'
+                WHERE brand = ? AND (category LIKE '%Wechselrichter%' OR category LIKE '%Inverter%')
                 ORDER BY model_name
                 """,
                 [manufacturer],
@@ -717,8 +740,8 @@ class SolarCalculatorProductBridge:
 
             return results
             
-        except Exception as e:
-            print(f"Error loading inverter models: {e}")
+        except Exception:
+            # Return empty list on error without printing to stdout
             return []
         finally:
             conn.close()
@@ -728,28 +751,15 @@ class SolarCalculatorProductBridge:
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
-            
-            try:
-                cursor.execute("""
-                    SELECT DISTINCT hersteller 
-                    FROM products_complete 
-                    WHERE kategorie = 'Batteriespeicher' 
-                    ORDER BY hersteller
-                """)
-                manufacturers = [row[0] for row in cursor.fetchall()]
-                if manufacturers:
-                    return manufacturers
-            except:
-                pass
-            
             cursor.execute("""
-                SELECT DISTINCT manufacturer 
+                SELECT DISTINCT brand 
                 FROM products 
                 WHERE category LIKE '%Speicher%' OR category LIKE '%Batter%'
-                ORDER BY manufacturer
+                AND brand IS NOT NULL AND brand != ''
+                ORDER BY brand
             """)
-            return [row[0] for row in cursor.fetchall()]
-        except:
+            return [row[0] for row in cursor.fetchall() if row[0]]
+        except Exception:
             return []
         finally:
             conn.close()
@@ -761,41 +771,15 @@ class SolarCalculatorProductBridge:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            try:
-                cursor.execute(
-                    """
-                    SELECT 
-                        id, kategorie, produkt_modell, hersteller, preis_stück,
-                        pv_modul_leistung, kapazitaet_speicher_kwh, wr_leistung_kw, ladezyklen_speicher,
-                        garantie_zeit, mass_laenge, mass_breite, mass_gewicht_kg, wirkungsgrad_prozent,
-                        hersteller_land, beschreibung_info, eigenschaft_info, spezial_merkmal,
-                        rating_null_zehn, image_base64, created_at, updated_at
-                    FROM products_complete 
-                    WHERE kategorie = 'Batteriespeicher' AND hersteller = ?
-                    ORDER BY produkt_modell
-                    """,
-                    [manufacturer],
-                )
-
-                results: List[Dict[str, Any]] = []
-                for row in cursor.fetchall():
-                    d = dict(row)
-                    std = self._to_standard_product_dict('Batteriespeicher', manufacturer, d)
-                    results.append(std)
-
-                if results:
-                    return results
-            except:
-                pass
-            
-            # Fallback
+            # Use React schema: products table with standardized columns
             cursor.execute(
                 """
-                SELECT id, category, model_name, manufacturer, price_euro, 
+                SELECT id, category, model_name, brand, price_euro, 
                        capacity_w, power_kw, efficiency_percent, length_m, width_m, weight_kg,
-                       warranty_years, origin_country, description, created_at, updated_at
+                       warranty_years, origin_country, description, storage_power_kw,
+                       created_at, updated_at
                 FROM products 
-                WHERE manufacturer = ? AND category LIKE '%Speicher%'
+                WHERE brand = ? AND (category LIKE '%Speicher%' OR category LIKE '%Batter%')
                 ORDER BY model_name
                 """,
                 [manufacturer],
@@ -804,16 +788,26 @@ class SolarCalculatorProductBridge:
             results: List[Dict[str, Any]] = []
             for row in cursor.fetchall():
                 d = dict(row)
-                # power_kw wird in älteren Tabellen als Speicher-kWh abgelegt
-                if d.get('category') and 'speicher' in str(d['category']).lower():
-                    d.setdefault('kapazitaet_speicher_kwh', d.get('power_kw'))
+                # Map storage_power_kw to German schema fields
+                if d.get('storage_power_kw') is not None:
+                    d['kapazitaet_speicher_kwh'] = d['storage_power_kw']
                 std = self._to_standard_product_dict('Batteriespeicher', manufacturer, d)
+                # Fix storage_kwh from database fields - check multiple sources
+                if d.get('storage_power_kw') and d.get('storage_power_kw') > 0:
+                    std['storage_kwh'] = d['storage_power_kw']
+                    std['kapazitaet_speicher_kwh'] = d['storage_power_kw']
+                elif d.get('capacity_w') and d.get('capacity_w') > 0:
+                    std['storage_kwh'] = d['capacity_w']
+                    std['kapazitaet_speicher_kwh'] = d['capacity_w']
+                elif d.get('pv_modul_leistung') and d.get('pv_modul_leistung') > 0:
+                    std['storage_kwh'] = d['pv_modul_leistung']
+                    std['kapazitaet_speicher_kwh'] = d['pv_modul_leistung']
                 results.append(std)
 
             return results
             
-        except Exception as e:
-            print(f"Error loading storage models: {e}")
+        except Exception:
+            # Return empty list on error without printing to stdout
             return []
         finally:
             conn.close()
@@ -894,12 +888,12 @@ class SolarCalculatorProductBridge:
             except:
                 pass
             
-            # Fallback
+            # Fallback to React schema
             cursor.execute("""
-                SELECT DISTINCT manufacturer 
+                SELECT DISTINCT brand 
                 FROM products 
-                WHERE category = ?
-                ORDER BY manufacturer
+                WHERE category = ? AND brand IS NOT NULL AND brand != ''
+                ORDER BY brand
             """, [category])
             return [row[0] for row in cursor.fetchall()]
         except:
@@ -942,14 +936,14 @@ class SolarCalculatorProductBridge:
             except:
                 pass
             
-            # Fallback
+            # Fallback to React schema  
             cursor.execute(
                 """
-                SELECT id, category, model_name, manufacturer, price_euro, 
+                SELECT id, category, model_name, brand, price_euro, 
                        capacity_w, power_kw, efficiency_percent, length_m, width_m, weight_kg,
                        warranty_years, origin_country, description, created_at, updated_at
                 FROM products 
-                WHERE manufacturer = ? AND category = ?
+                WHERE brand = ? AND category = ?
                 ORDER BY model_name
                 """,
                 [manufacturer, category],
@@ -963,8 +957,8 @@ class SolarCalculatorProductBridge:
 
             return results
             
-        except Exception as e:
-            print(f"Error loading models for {category}/{manufacturer}: {e}")
+        except Exception:
+            # Return empty list on error without printing to stdout
             return []
         finally:
             conn.close()
@@ -993,7 +987,7 @@ class SolarCalculatorProductBridge:
         std['preis_stück'] = val('preis_stück', 'price_euro', 'price', default=0)
         std['pv_modul_leistung'] = val('pv_modul_leistung', 'capacity_w', default=None)
         # Speicher kWh: products_complete hat kapazitaet_speicher_kwh; fallback products nutzt häufig power_kw für Speichergröße
-        std['kapazitaet_speicher_kwh'] = val('kapazitaet_speicher_kwh', default=val('storage_kwh', 'storage_power_kw', 'power_kw', default=None))
+        std['kapazitaet_speicher_kwh'] = val('kapazitaet_speicher_kwh', 'storage_kwh', 'storage_power_kw', 'power_kw', default=None)
         std['wr_leistung_kw'] = val('wr_leistung_kw', 'power_kw', default=None)
         std['ladezyklen_speicher'] = val('ladezyklen_speicher', 'max_cycles', default=None)
         std['garantie_zeit'] = val('garantie_zeit', 'warranty_years', default=None)
@@ -1016,7 +1010,8 @@ class SolarCalculatorProductBridge:
         std.setdefault('brand', std['hersteller'])
         std.setdefault('price', std['preis_stück'])
         std.setdefault('capacity_w', std['pv_modul_leistung'])
-        std.setdefault('storage_kwh', std['kapazitaet_speicher_kwh'])
+        # Use storage_power_kw from database if available, otherwise use kapazitaet_speicher_kwh
+        std.setdefault('storage_kwh', val('storage_power_kw', default=std['kapazitaet_speicher_kwh']))
         std.setdefault('power_kw', std['wr_leistung_kw'])
         std.setdefault('efficiency', std['wirkungsgrad_prozent'])
         std.setdefault('warranty_years', std['garantie_zeit'])
@@ -1143,8 +1138,8 @@ class SolarCalculatorProductBridge:
             conn.commit()
             return True
             
-        except Exception as e:
-            print(f"Error saving solar configuration: {e}")
+        except Exception:
+            # Error saving - return False without printing to stdout
             return False
         finally:
             conn.close()
@@ -1308,7 +1303,40 @@ if __name__ == "__main__":
         elif command == "import_products_from_file" and len(sys.argv) > 2:
             try:
                 payload = json.loads(sys.argv[2])
-                res = bridge.import_products_from_file(payload.get('file_path', ''), company_id=payload.get('company_id'), dry_run=bool(payload.get('dry_run', False)))
+                
+                # Handle bytes data (from file upload)
+                if 'data' in payload and 'filename' in payload:
+                    import tempfile
+                    import os
+                    
+                    # Create temporary file with the uploaded data
+                    file_extension = payload.get('file_extension', 'xlsx')
+                    temp_filename = f"temp_upload.{file_extension}"
+                    temp_path = os.path.join(tempfile.gettempdir(), temp_filename)
+                    
+                    # Convert data array back to bytes and write to temp file
+                    data_bytes = bytes(payload['data'])
+                    with open(temp_path, 'wb') as temp_file:
+                        temp_file.write(data_bytes)
+                    
+                    try:
+                        res = bridge.import_products_from_file(
+                            temp_path, 
+                            company_id=payload.get('company_id'), 
+                            dry_run=bool(payload.get('dry_run', False))
+                        )
+                    finally:
+                        # Clean up temp file
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
+                else:
+                    # Handle file path (existing functionality)
+                    res = bridge.import_products_from_file(
+                        payload.get('file_path', ''), 
+                        company_id=payload.get('company_id'), 
+                        dry_run=bool(payload.get('dry_run', False))
+                    )
+                
                 print(json.dumps(res, default=str))
             except Exception as e:
                 print(json.dumps({"success": False, "error": str(e)}))

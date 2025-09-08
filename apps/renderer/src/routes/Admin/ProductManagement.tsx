@@ -126,28 +126,40 @@ export default function ProductManagement(): JSX.Element {
     reader.readAsDataURL(file);
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, dryRun: boolean = false) => {
     if (!file) return;
     
     setLoading(true);
     try {
       const fileBuffer = await file.arrayBuffer();
-      const result = await (window as any).api?.product?.bulkImportProducts({
+      const uint8Array = new Uint8Array(fileBuffer);
+      
+      // Use Python bridge for actual import (like the original Python version)
+      const result = await (window as any).api?.importProductsFromFile?.({
         filename: file.name,
-        data: Array.from(new Uint8Array(fileBuffer)),
-        type: file.name.endsWith('.xlsx') ? 'xlsx' : 'csv'
+        data: Array.from(uint8Array),
+        file_extension: file.name.split('.').pop()?.toLowerCase(),
+        dry_run: dryRun  // Pass dry run parameter
       });
       
       if (result?.success) {
-        alert(`Import erfolgreich! ${result.imported} neue Produkte, ${result.updated} aktualisiert, ${result.skipped} übersprungen`);
-        await loadProducts();
-        setUploadFile(null);
+        const message = dryRun 
+          ? `Probelauf abgeschlossen: ${(result.created || 0) + (result.updated || 0)} Produkte würden verarbeitet (${result.created || 0} neu, ${result.updated || 0} aktualisiert, ${result.skipped || 0} übersprungen)`
+          : `Import erfolgreich! ${result.created || 0} neue Produkte erstellt, ${result.updated || 0} aktualisiert, ${result.skipped || 0} übersprungen`;
+        
+        alert(message);
+        
+        if (!dryRun) {
+          // Only reload products after real import, not dry run
+          await loadProducts();
+          setUploadFile(null);
+        }
       } else {
-        alert(`Import Fehler: ${result?.message || 'Unbekannter Fehler'}`);
+        alert(`${dryRun ? 'Probelauf' : 'Import'} Fehler: ${result?.error || 'Unbekannter Fehler'}`);
       }
     } catch (error) {
       console.error('File upload failed:', error);
-      alert('Datei-Upload fehlgeschlagen');
+      alert(`${dryRun ? 'Probelauf' : 'Import'} fehlgeschlagen: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -282,11 +294,19 @@ export default function ProductManagement(): JSX.Element {
             />
             
             <button 
-              onClick={() => uploadFile && handleFileUpload(uploadFile)}
+              onClick={() => uploadFile && handleFileUpload(uploadFile, true)}
+              disabled={!uploadFile || loading}
+              className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {loading ? 'Prüfe...' : 'Probelauf'}
+            </button>
+            
+            <button 
+              onClick={() => uploadFile && handleFileUpload(uploadFile, false)}
               disabled={!uploadFile || loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
-              {loading ? 'Verarbeite...' : 'Datei verarbeiten'}
+              {loading ? 'Importiere...' : 'Import starten'}
             </button>
           </div>
         </div>

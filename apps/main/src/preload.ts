@@ -144,6 +144,9 @@ contextBridge.exposeInMainWorld('productAPI', productAPI);
 // Expose main API object
 contextBridge.exposeInMainWorld('api', {
   product: productAPI,
+  // Add direct Python bridge functions
+  importProductsFromFile: (payload: Record<string, unknown>) => 
+    ipcRenderer.invoke('import:products_from_file', payload),
 });
 
 // System Helfer
@@ -176,6 +179,7 @@ declare global {
     productsAPI: ProductsAPI;
     api: {
       product: ProductAPI;
+      importProductsFromFile: (payload: Record<string, unknown>) => Promise<any>;
     };
     systemAPI: SystemAPI;
   }
