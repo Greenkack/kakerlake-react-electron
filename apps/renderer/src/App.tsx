@@ -96,6 +96,9 @@ export default function App(): JSX.Element {
             ]}
           />
 
+          {/* Dashboard - Separate KPI-Übersicht */}
+          <NavLink to="/dashboard">📊 Dashboard</NavLink>
+
           {/* Kalkulation */}
           <DropdownMenu
             title="Kalkulation"
@@ -103,7 +106,7 @@ export default function App(): JSX.Element {
             items={[
               { to: "/calc/solar", label: "Solarkalkulator" },
               { to: "/calc/heatpump", label: "Wärmepumpen-Sim" },
-              { to: "/calc/results", label: "Ergebnisse & Dashboard" }
+              { to: "/calc/results", label: "Ergebnisse" }
             ]}
           />
 

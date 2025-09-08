@@ -11,6 +11,7 @@ import PdfHubReal from "./routes/PdfHub";
 import CRMMenuReal from "./routes/CRM/Menu";
 import AdminRouter from "./routes/Admin/index";
 import Results from "./routes/Results";
+import Dashboard from "./routes/Dashboard";
 import { ProjectProvider } from "./lib/projectContext";
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
         <Routes>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/project/*" element={<ProjectWizard />} />
           <Route path="/solar" element={<SolarCalc />} />
           {/* Alias für Menü-Link aus App.tsx */}
@@ -72,6 +74,14 @@ function Home() {
       color: 'text-green-600', 
       path: '/solar',
       description: 'Schnelle Kalkulation für Photovoltaik-Anlagen' 
+    },
+    { 
+      id: 'dashboard', 
+      title: 'Dashboard', 
+      icon: '📊', 
+      color: 'text-cyan-600', 
+      path: '/dashboard',
+      description: 'Berechnungsergebnisse und KPI-Visualisierungen' 
     },
     { 
       id: 'heatpump', 
