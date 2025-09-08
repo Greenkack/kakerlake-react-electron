@@ -1,6 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProject } from '../lib/projectContext';
+import {
+  Box,
+  Container,
+  VStack,
+  HStack,
+  Heading,
+  Text,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  FormControl,
+  FormLabel,
+  Select,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  Switch,
+  Grid,
+  GridItem,
+  Badge,
+  Divider,
+  Progress,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Slider,
+  SliderTrack,
+  SliderFilledTrack,
+  SliderThumb,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  useToast,
+  Spinner,
+  Center
+} from '@chakra-ui/react';
 
 // Produkt-Typ mit deutschen, standardisierten Keys
 interface Product {
@@ -397,8 +438,14 @@ export default function SolarCalculator(): JSX.Element {
         ? await (window as any).solarAPI.saveConfiguration(config)
         : { success: false };
       if (!res?.success) throw new Error('Fehler beim Speichern der Konfiguration');
+      // Zusätzlich lokal persistieren für Dashboard/Progress-Page
+      try {
+        localStorage.setItem('kakerlake_solar_config', JSON.stringify(config));
+      } catch (e) {
+        console.warn('Konnte Konfiguration nicht im localStorage speichern:', e);
+      }
       console.log('Solar Configuration gespeichert:', config);
-      navigate('/results'); // Zu Ergebnissen navigieren
+      navigate('/calculation-progress'); // Zur Berechnungsseite navigieren
     } catch (error) {
       console.error('Speicherfehler:', error);
       alert('Konfiguration konnte nicht gespeichert werden');
@@ -406,141 +453,309 @@ export default function SolarCalculator(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header className="rounded-xl bg-white p-4 shadow flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Solarkalkulator</h1>
-          <p className="text-gray-600 text-sm">Schritt {step} / 2 – Technik konfigurieren</p>
-        </div>
-        <span className="text-xs text-gray-400">Build SC-TS v1</span>
-      </header>
+    <div>
+      <VStack spacing={6} align="stretch">
+        <Card variant="outline" bg="darkBg.400" borderColor="neonGreen.500">
+          <CardBody>
+            <HStack justify="space-between" align="center">
+              <VStack align="start" spacing={1}>
+                <Heading size="lg" color="neonGreen.300" textShadow="0 0 10px rgba(0, 255, 0, 0.8)">
+                  ⚡ SOLAR KALKULATOR ⚡
+                </Heading>
+                <Text fontSize="sm" color="neonGreen.200">
+                  Schritt {step} / 2 – Technik konfigurieren
+                </Text>
+              </VStack>
+              <Badge colorScheme="green" variant="outline" fontSize="xs">
+                Build SC-TS v1
+              </Badge>
+            </HStack>
+          </CardBody>
+        </Card>
 
-      {step === 1 && (
-        <section className="rounded-xl bg-white p-5 shadow space-y-8">
-          
-          {/* DEMO-HINWEIS */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-blue-600 font-medium">🚀 Demo-Konfiguration</span>
-            </div>
-            <div className="text-sm text-blue-700 grid gap-1 md:grid-cols-3">
-              <div><strong>Anzahl Module:</strong> {config.moduleQty}</div>
-              <div><strong>Leistung pro Modul:</strong> {moduleWp} Wp</div>
-              <div><strong>Anlagengröße:</strong> {kWp.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp</div>
-            </div>
-          </div>
+        {step === 1 && (
+          <Card bg="darkBg.400" borderColor="neonGreen.500" variant="outline">
+            <CardBody p={6}>
+              <VStack spacing={8} align="stretch">
+                
+                {/* DEMO-HINWEIS */}
+                <Alert 
+                  status="info" 
+                  bg="neonGreen.900" 
+                  color="neonGreen.100"
+                  borderColor="neonGreen.500"
+                  variant="left-accent"
+                  borderRadius="lg"
+                >
+                  <AlertIcon color="neonGreen.400" />
+                  <Box>
+                    <AlertTitle>🚀 Demo-Konfiguration</AlertTitle>
+                    <AlertDescription>
+                      <Grid templateColumns="repeat(3, 1fr)" gap={2} mt={2}>
+                        <Text><Text as="span" fontWeight="bold">Anzahl Module:</Text> {config.moduleQty}</Text>
+                        <Text><Text as="span" fontWeight="bold">Leistung pro Modul:</Text> {moduleWp} Wp</Text>
+                        <Text><Text as="span" fontWeight="bold">Anlagengröße:</Text> {kWp.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp</Text>
+                      </Grid>
+                    </AlertDescription>
+                  </Box>
+                </Alert>
 
-          {/* MODULE */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">PV Module</h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="block text-sm mb-1">Anzahl PV Module</label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setConfig(prev => ({...prev, moduleQty: Math.max(0, prev.moduleQty - 1)}))} className="rounded bg-gray-200 px-3 py-2 hover:bg-gray-300">−</button>
-                  <input type="number" className="w-full rounded border px-3 py-2" value={config.moduleQty} onChange={e => setConfig(prev => ({...prev, moduleQty: parseInt(e.target.value || '0', 10)}))} min={0} />
-                  <button type="button" onClick={() => setConfig(prev => ({...prev, moduleQty: prev.moduleQty + 1}))} className="rounded bg-gray-200 px-3 py-2 hover:bg-gray-300">+</button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Hersteller</label>
-                <select value={config.moduleBrand} onChange={e => { setConfig(prev => ({...prev, moduleBrand: e.target.value, moduleModel: ''})); }} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {moduleBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Modell</label>
-                <select value={config.moduleModel} onChange={e => setConfig(prev => ({...prev, moduleModel: e.target.value}))} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {filteredModuleModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded border bg-gray-50 p-3 text-sm">
-                <div className="text-gray-600">Leistung pro Modul (Wp)</div>
-                <div className="font-semibold text-lg">{moduleWp || 0}</div>
-              </div>
-              <div className="rounded border bg-blue-50 p-3 text-sm border-blue-200">
-                <div className="text-blue-700">Anlagengröße (kWp)</div>
-                <div className="font-bold text-2xl text-blue-800">{kWp.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </div>
-              <div className="rounded border bg-green-50 p-3 text-sm border-green-200">
-                <div className="text-green-700">Jahresertrag (geschätzt)</div>
-                <div className="font-semibold text-lg text-green-800">{Math.round(kWp * 950).toLocaleString('de-DE')} kWh</div>
-              </div>
-            </div>
-          </div>
+                {/* MODULE */}
+                <VStack spacing={4} align="stretch">
+                  <Heading size="md" color="neonGreen.300">
+                    ⚡ PV Module
+                  </Heading>
+                  <Grid templateColumns="repeat(3, 1fr)" gap={4}>
+                    <FormControl>
+                      <FormLabel color="gray.300" fontSize="sm">Anzahl PV Module</FormLabel>
+                      <HStack>
+                        <Button 
+                          size="sm" 
+                          bg="gray.600" 
+                          color="white" 
+                          _hover={{ bg: "gray.500" }}
+                          onClick={() => setConfig(prev => ({...prev, moduleQty: Math.max(0, prev.moduleQty - 1)}))}
+                        >
+                          −
+                        </Button>
+                        <NumberInput
+                          value={config.moduleQty}
+                          onChange={(_, val) => setConfig(prev => ({...prev, moduleQty: val || 0}))}
+                          min={0}
+                          bg="gray.700"
+                          color="white"
+                          borderColor="neonGreen.500"
+                        >
+                          <NumberInputField />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper color="neonGreen.400" />
+                            <NumberDecrementStepper color="neonGreen.400" />
+                          </NumberInputStepper>
+                        </NumberInput>
+                        <Button 
+                          size="sm" 
+                          bg="gray.600" 
+                          color="white" 
+                          _hover={{ bg: "gray.500" }}
+                          onClick={() => setConfig(prev => ({...prev, moduleQty: prev.moduleQty + 1}))}
+                        >
+                          +
+                        </Button>
+                      </HStack>
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel color="gray.300" fontSize="sm">Hersteller</FormLabel>
+                      <Select 
+                        value={config.moduleBrand} 
+                        onChange={e => setConfig(prev => ({...prev, moduleBrand: e.target.value, moduleModel: ''}))}
+                        bg="gray.700"
+                        color="white"
+                        borderColor="neonGreen.500"
+                      >
+                        <option value="">-- wählen --</option>
+                        {moduleBrands.map(b => <option key={b} value={b} style={{background: '#2D3748'}}>{b}</option>)}
+                      </Select>
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel color="gray.300" fontSize="sm">Modell</FormLabel>
+                      <Select 
+                        value={config.moduleModel} 
+                        onChange={e => setConfig(prev => ({...prev, moduleModel: e.target.value}))}
+                        bg="gray.700"
+                        color="white"
+                        borderColor="neonGreen.500"
+                      >
+                        <option value="">-- wählen --</option>
+                        {filteredModuleModels.map(m => <option key={m.id} value={m.produkt_modell} style={{background: '#2D3748'}}>{m.produkt_modell}</option>)}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid templateColumns="repeat(3, 1fr)" gap={4}>
+                    <Card bg="gray.700" borderColor="gray.600" variant="outline">
+                      <CardBody p={3}>
+                        <Stat>
+                          <StatLabel color="gray.300" fontSize="xs">Leistung pro Modul (Wp)</StatLabel>
+                          <StatNumber color="white" fontSize="lg">{moduleWp || 0}</StatNumber>
+                        </Stat>
+                      </CardBody>
+                    </Card>
+                    <Card bg="neonGreen.900" borderColor="neonGreen.500" variant="outline" 
+                          boxShadow="0 0 15px rgba(57, 255, 20, 0.3)">
+                      <CardBody p={3}>
+                        <Stat>
+                          <StatLabel color="neonGreen.200" fontSize="xs">Anlagengröße (kWp)</StatLabel>
+                          <StatNumber color="neonGreen.300" fontSize="2xl" fontWeight="bold">
+                            {kWp.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </StatNumber>
+                        </Stat>
+                      </CardBody>
+                    </Card>
+                    <Card bg="green.900" borderColor="green.500" variant="outline">
+                      <CardBody p={3}>
+                        <Stat>
+                          <StatLabel color="green.200" fontSize="xs">Jahresertrag (geschätzt)</StatLabel>
+                          <StatNumber color="green.300" fontSize="lg" fontWeight="semibold">
+                            {Math.round(kWp * 950).toLocaleString('de-DE')} kWh
+                          </StatNumber>
+                        </Stat>
+                      </CardBody>
+                    </Card>
+                  </Grid>
+                </VStack>
 
-          {/* WECHSELRICHTER */}
-          <div className="space-y-4 pt-2 border-t">
-            <h2 className="text-lg font-semibold">Wechselrichter</h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="block text-sm mb-1">Hersteller</label>
-                <select value={config.invBrand} onChange={e => { setConfig(prev => ({...prev, invBrand: e.target.value, invModel: ''})); }} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {inverterBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Modell</label>
-                <select value={config.invModel} onChange={e => setConfig(prev => ({...prev, invModel: e.target.value}))} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {filteredInvModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Anzahl WR</label>
-                <input type="number" className="w-full rounded border px-3 py-2" value={config.invQty} onChange={e => setConfig(prev => ({...prev, invQty: Math.max(1, parseInt(e.target.value || '1', 10))}))} min={1} />
-              </div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded border bg-gray-50 p-3 text-sm">
-                <div className="text-gray-600">Leistung je WR (kW)</div>
-                <div className="font-semibold text-lg">{currentInv?.wr_leistung_kw ?? 0}</div>
-              </div>
-              <div className="rounded border bg-gray-50 p-3 text-sm">
-                <div className="text-gray-600">WR Gesamt (kW)</div>
-                <div className="font-semibold text-lg">{totalInvPowerKW.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </div>
-            </div>
-          </div>
+                {/* WECHSELRICHTER */}
+                <Box>
+                  <Divider borderColor="neonGreen.500" mb={4} />
+                  <VStack spacing={4} align="stretch">
+                    <Heading size="md" color="neonGreen.300">
+                      🔌 Wechselrichter
+                    </Heading>
+                    <Grid templateColumns="repeat(3, 1fr)" gap={4}>
+                      <FormControl>
+                        <FormLabel color="gray.300" fontSize="sm">Hersteller</FormLabel>
+                        <Select 
+                          value={config.invBrand} 
+                          onChange={e => setConfig(prev => ({...prev, invBrand: e.target.value, invModel: ''}))}
+                          bg="gray.700"
+                          color="white"
+                          borderColor="neonGreen.500"
+                        >
+                          <option value="">-- wählen --</option>
+                          {inverterBrands.map(b => <option key={b} value={b} style={{background: '#2D3748'}}>{b}</option>)}
+                        </Select>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel color="gray.300" fontSize="sm">Modell</FormLabel>
+                        <Select 
+                          value={config.invModel} 
+                          onChange={e => setConfig(prev => ({...prev, invModel: e.target.value}))}
+                          bg="gray.700"
+                          color="white"
+                          borderColor="neonGreen.500"
+                        >
+                          <option value="">-- wählen --</option>
+                          {filteredInvModels.map(m => <option key={m.id} value={m.produkt_modell} style={{background: '#2D3748'}}>{m.produkt_modell}</option>)}
+                        </Select>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel color="gray.300" fontSize="sm">Anzahl WR</FormLabel>
+                        <NumberInput
+                          value={config.invQty}
+                          onChange={(_, val) => setConfig(prev => ({...prev, invQty: Math.max(1, val || 1)}))}
+                          min={1}
+                          bg="gray.700"
+                          color="white"
+                          borderColor="neonGreen.500"
+                        >
+                          <NumberInputField />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper color="neonGreen.400" />
+                            <NumberDecrementStepper color="neonGreen.400" />
+                          </NumberInputStepper>
+                        </NumberInput>
+                      </FormControl>
+                    </Grid>
+                    <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+                      <Card bg="gray.700" borderColor="gray.600" variant="outline">
+                        <CardBody p={3}>
+                          <Stat>
+                            <StatLabel color="gray.300" fontSize="xs">Leistung je WR (kW)</StatLabel>
+                            <StatNumber color="white" fontSize="lg">{currentInv?.wr_leistung_kw ?? 0}</StatNumber>
+                          </Stat>
+                        </CardBody>
+                      </Card>
+                      <Card bg="gray.700" borderColor="gray.600" variant="outline">
+                        <CardBody p={3}>
+                          <Stat>
+                            <StatLabel color="gray.300" fontSize="xs">WR Gesamt (kW)</StatLabel>
+                            <StatNumber color="white" fontSize="lg">
+                              {totalInvPowerKW.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </StatNumber>
+                          </Stat>
+                        </CardBody>
+                      </Card>
+                    </Grid>
+                  </VStack>
+                </Box>
 
-          {/* SPEICHER */}
-          <div className="space-y-4 pt-2 border-t">
-            <div className="flex items-center gap-3">
-              <input id="withStorage" type="checkbox" checked={config.withStorage} onChange={e => setConfig(prev => ({...prev, withStorage: e.target.checked}))} />
-              <label htmlFor="withStorage" className="text-sm font-medium">Batteriespeicher einplanen</label>
-            </div>
-            {config.withStorage && (
-              <div className="grid gap-4 md:grid-cols-4">
-                <div>
-                  <label className="block text-sm mb-1">Hersteller</label>
-                  <select value={config.storageBrand} onChange={e => { setConfig(prev => ({...prev, storageBrand: e.target.value, storageModel: ''})); }} className="w-full rounded border px-3 py-2">
+                {/* SPEICHER */}
+                <Box>
+                  <Divider borderColor="neonGreen.500" mb={4} />
+                  <VStack spacing={4} align="stretch">
+                    <FormControl display="flex" alignItems="center" gap={3}>
+                      <Switch 
+                        id="withStorage" 
+                        isChecked={config.withStorage} 
+                        onChange={e => setConfig(prev => ({...prev, withStorage: e.target.checked}))}
+                        colorScheme="green"
+                        size="lg"
+                      />
+                      <FormLabel htmlFor="withStorage" color="neonGreen.300" fontSize="md" fontWeight="medium" mb={0}>
+                        🔋 Batteriespeicher einplanen
+                      </FormLabel>
+                    </FormControl>
+                    {config.withStorage && (
+                      <VStack spacing={4} align="stretch">
+                        <Grid templateColumns="1fr 2fr 1fr" gap={4}>
+                          <FormControl>
+                            <FormLabel color="gray.300" fontSize="sm">Hersteller</FormLabel>
+                            <Select 
+                              value={config.storageBrand} 
+                              onChange={e => setConfig(prev => ({...prev, storageBrand: e.target.value, storageModel: ''}))}
+                              bg="gray.700"
+                              color="white"
+                              borderColor="neonGreen.500"
+                            >
+                              <option value="">-- wählen --</option>
+                              {storageBrands.map(b => <option key={b} value={b} style={{background: '#2D3748'}}>{b}</option>)}
+                            </Select>
+                          </FormControl>
+                <FormControl>
+                  <FormLabel color="gray.300" fontSize="sm">Modell</FormLabel>
+                  <Select 
+                    value={config.storageModel} 
+                    onChange={e => setConfig(prev => ({...prev, storageModel: e.target.value}))}
+                    bg="gray.700"
+                    color="white"
+                    borderColor="neonGreen.500"
+                  >
                     <option value="">-- wählen --</option>
-                    {storageBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm mb-1">Modell</label>
-                  <select value={config.storageModel} onChange={e => setConfig(prev => ({...prev, storageModel: e.target.value}))} className="w-full rounded border px-3 py-2">
-                    <option value="">-- wählen --</option>
-                    {filteredStorageModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Gewünschte Gesamtkapazität (kWh)</label>
-                  <input type="number" className="w-full rounded border px-3 py-2" min={0} value={config.storageDesiredKWh} onChange={e => setConfig(prev => ({...prev, storageDesiredKWh: parseFloat(e.target.value || '0')}))} />
-                </div>
-                <div className="rounded border bg-gray-50 p-3 text-sm col-span-2">
-                  <div className="text-gray-600">Kapazität Modell (kWh)</div>
-                  <div className="font-semibold text-lg">{storageModelKWh || 0}</div>
-                </div>
-              </div>
-            )}
-          </div>
+                    {filteredStorageModels.map(m => <option key={m.id} value={m.produkt_modell} style={{background: '#2D3748'}}>{m.produkt_modell}</option>)}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel color="gray.300" fontSize="sm">Gewünschte Gesamtkapazität (kWh)</FormLabel>
+                  <NumberInput
+                    value={config.storageDesiredKWh}
+                    onChange={(_, val) => setConfig(prev => ({...prev, storageDesiredKWh: val || 0}))}
+                    min={0}
+                    bg="gray.700"
+                    color="white"
+                    borderColor="neonGreen.500"
+                  >
+                    <NumberInputField />
+                    <NumberInputStepper>
+                      <NumberIncrementStepper color="neonGreen.400" />
+                      <NumberDecrementStepper color="neonGreen.400" />
+                    </NumberInputStepper>
+                  </NumberInput>
+                </FormControl>
+              </Grid>
+              <Grid templateColumns="repeat(3, 1fr)" gap={4}>
+                <Card bg="gray.700" borderColor="gray.600" variant="outline" gridColumn="span 2 / span 2">
+                  <CardBody p={3}>
+                    <Stat>
+                      <StatLabel color="gray.300" fontSize="xs">Kapazität Modell (kWh)</StatLabel>
+                      <StatNumber color="white" fontSize="lg">{storageModelKWh || 0}</StatNumber>
+                    </Stat>
+                  </CardBody>
+                </Card>
+              </Grid>
+            </VStack>
+          )}
+          </VStack>
+
+                </Box>
 
           {errors.length > 0 && (
             <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700 space-y-1">
@@ -548,292 +763,303 @@ export default function SolarCalculator(): JSX.Element {
             </div>
           )}
 
-          <div className="flex justify-end pt-4">
-            <button onClick={goNext} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg disabled:opacity-50" disabled={errors.length > 0}>Nächste Seite</button>
-          </div>
-        </section>
+        <div className="flex justify-end pt-4">
+          <button onClick={goNext} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg disabled:opacity-50" disabled={errors.length > 0}>Nächste Seite</button>
+        </div>
+            </VStack>
+          </CardBody>
+        </Card>
       )}
 
       {step === 2 && (
-        <section className="rounded-xl bg-white p-5 shadow space-y-6">
-          <h2 className="text-lg font-semibold">Zusätzliche Komponenten</h2>
-          
-          {/* Zusätzliche Komponenten aktivieren */}
-          <div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={config.additionalComponents}
-                onChange={e => setConfig(prev => ({...prev, additionalComponents: e.target.checked}))}
-              />
-              <span>Zusätzliche Komponenten hinzufügen</span>
-            </label>
-          </div>
+        <Card bg="darkBg.400" borderColor="neonGreen.500" variant="outline">
+          <CardBody p={6}>
+            <VStack spacing={6} align="stretch">
+              <div className="rounded-xl bg-white p-5 shadow space-y-6">
+                <h2 className="text-lg font-semibold">Zusätzliche Komponenten</h2>
+                
+                {/* Zusätzliche Komponenten aktivieren */}
+                <div>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={config.additionalComponents}
+                      onChange={e => setConfig(prev => ({...prev, additionalComponents: e.target.checked}))}
+                    />
+                    <span>Zusätzliche Komponenten hinzufügen</span>
+                  </label>
+                </div>
 
-          {config.additionalComponents && (
-            <div className="space-y-6">
-              {/* Wallbox */}
-              <div className="border rounded p-4 space-y-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={config.wallboxEnabled}
-                    onChange={e => setConfig(prev => ({...prev, wallboxEnabled: e.target.checked}))}
-                  />
-                  <span className="font-medium">Wallbox</span>
-                </label>
-                {config.wallboxEnabled && (
-                  <div className="grid gap-4 md:grid-cols-2 ml-6">
-                    <div>
-                      <label className="block text-sm mb-1">Hersteller</label>
-                      <select
-                        value={config.wallboxBrand}
-                        onChange={e => setConfig(prev => ({...prev, wallboxBrand: e.target.value, wallboxModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {wallboxBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                {config.additionalComponents && (
+                  <div className="space-y-6">
+                    {/* Wallbox */}
+                    <div className="border rounded p-4 space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.wallboxEnabled}
+                          onChange={e => setConfig(prev => ({...prev, wallboxEnabled: e.target.checked}))}
+                        />
+                        <span className="font-medium">Wallbox</span>
+                      </label>
+                      {config.wallboxEnabled && (
+                        <div className="grid gap-4 md:grid-cols-2 ml-6">
+                          <div>
+                            <label className="block text-sm mb-1">Hersteller</label>
+                            <select
+                              value={config.wallboxBrand}
+                              onChange={e => setConfig(prev => ({...prev, wallboxBrand: e.target.value, wallboxModel: ''}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {wallboxBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Modell</label>
+                            <select
+                              value={config.wallboxModel}
+                              onChange={e => setConfig(prev => ({...prev, wallboxModel: e.target.value}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {wallboxModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm mb-1">Modell</label>
-                      <select
-                        value={config.wallboxModel}
-                        onChange={e => setConfig(prev => ({...prev, wallboxModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {wallboxModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+
+                    {/* EMS */}
+                    <div className="border rounded p-4 space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.emsEnabled}
+                          onChange={e => setConfig(prev => ({...prev, emsEnabled: e.target.checked}))}
+                        />
+                        <span className="font-medium">Energie Management System (EMS)</span>
+                      </label>
+                      {config.emsEnabled && (
+                        <div className="grid gap-4 md:grid-cols-2 ml-6">
+                          <div>
+                            <label className="block text-sm mb-1">Hersteller</label>
+                            <select
+                              value={config.emsBrand}
+                              onChange={e => setConfig(prev => ({...prev, emsBrand: e.target.value, emsModel: ''}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {emsBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Modell</label>
+                            <select
+                              value={config.emsModel}
+                              onChange={e => setConfig(prev => ({...prev, emsModel: e.target.value}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {emsModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Optimizer */}
+                    <div className="border rounded p-4 space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.optimizerEnabled}
+                          onChange={e => setConfig(prev => ({...prev, optimizerEnabled: e.target.checked}))}
+                        />
+                        <span className="font-medium">Optimizer</span>
+                      </label>
+                      {config.optimizerEnabled && (
+                        <div className="grid gap-4 md:grid-cols-3 ml-6">
+                          <div>
+                            <label className="block text-sm mb-1">Hersteller</label>
+                            <select
+                              value={config.optimizerBrand}
+                              onChange={e => setConfig(prev => ({...prev, optimizerBrand: e.target.value, optimizerModel: ''}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {optimizerBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Modell</label>
+                            <select
+                              value={config.optimizerModel}
+                              onChange={e => setConfig(prev => ({...prev, optimizerModel: e.target.value}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {optimizerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Anzahl</label>
+                            <input
+                              type="number"
+                              value={config.optimizerQty}
+                              onChange={e => setConfig(prev => ({...prev, optimizerQty: parseInt(e.target.value || '0', 10)}))}
+                              className="w-full rounded border px-3 py-2"
+                              min="0"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Carport */}
+                    <div className="border rounded p-4 space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.carportEnabled}
+                          onChange={e => setConfig(prev => ({...prev, carportEnabled: e.target.checked}))}
+                        />
+                        <span className="font-medium">Carport</span>
+                      </label>
+                      {config.carportEnabled && (
+                        <div className="grid gap-4 md:grid-cols-2 ml-6">
+                          <div>
+                            <label className="block text-sm mb-1">Hersteller</label>
+                            <select
+                              value={config.carportBrand}
+                              onChange={e => setConfig(prev => ({...prev, carportBrand: e.target.value, carportModel: ''}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {carportBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Modell</label>
+                            <select
+                              value={config.carportModel}
+                              onChange={e => setConfig(prev => ({...prev, carportModel: e.target.value}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {carportModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notstrom */}
+                    <div className="border rounded p-4 space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.emergencyPowerEnabled}
+                          onChange={e => setConfig(prev => ({...prev, emergencyPowerEnabled: e.target.checked}))}
+                        />
+                        <span className="font-medium">Notstrom</span>
+                      </label>
+                      {config.emergencyPowerEnabled && (
+                        <div className="grid gap-4 md:grid-cols-2 ml-6">
+                          <div>
+                            <label className="block text-sm mb-1">Hersteller</label>
+                            <select
+                              value={config.emergencyPowerBrand}
+                              onChange={e => setConfig(prev => ({...prev, emergencyPowerBrand: e.target.value, emergencyPowerModel: ''}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {emergencyPowerBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Modell</label>
+                            <select
+                              value={config.emergencyPowerModel}
+                              onChange={e => setConfig(prev => ({...prev, emergencyPowerModel: e.target.value}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {emergencyPowerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tierabwehr */}
+                    <div className="border rounded p-4 space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.animalProtectionEnabled}
+                          onChange={e => setConfig(prev => ({...prev, animalProtectionEnabled: e.target.checked}))}
+                        />
+                        <span className="font-medium">Tierabwehr</span>
+                      </label>
+                      {config.animalProtectionEnabled && (
+                        <div className="grid gap-4 md:grid-cols-2 ml-6">
+                          <div>
+                            <label className="block text-sm mb-1">Hersteller</label>
+                            <select
+                              value={config.animalProtectionBrand}
+                              onChange={e => setConfig(prev => ({...prev, animalProtectionBrand: e.target.value, animalProtectionModel: ''}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {animalProtectionBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Modell</label>
+                            <select
+                              value={config.animalProtectionModel}
+                              onChange={e => setConfig(prev => ({...prev, animalProtectionModel: e.target.value}))}
+                              className="w-full rounded border px-3 py-2"
+                            >
+                              <option value="">-- wählen --</option>
+                              {animalProtectionModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* EMS */}
-              <div className="border rounded p-4 space-y-3">
-                <label className="flex items-center gap-2">
+                {/* Freitext */}
+                <div>
+                  <label className="block text-sm mb-1">Sonstiges (frei)</label>
                   <input
-                    type="checkbox"
-                    checked={config.emsEnabled}
-                    onChange={e => setConfig(prev => ({...prev, emsEnabled: e.target.checked}))}
+                    value={config.otherComponentNote}
+                    onChange={e => setConfig(prev => ({ ...prev, otherComponentNote: e.target.value }))}
+                    maxLength={120}
+                    className="w-full rounded border px-3 py-2"
+                    placeholder="Freitext..."
                   />
-                  <span className="font-medium">Energie Management System (EMS)</span>
-                </label>
-                {config.emsEnabled && (
-                  <div className="grid gap-4 md:grid-cols-2 ml-6">
-                    <div>
-                      <label className="block text-sm mb-1">Hersteller</label>
-                      <select
-                        value={config.emsBrand}
-                        onChange={e => setConfig(prev => ({...prev, emsBrand: e.target.value, emsModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emsBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Modell</label>
-                      <select
-                        value={config.emsModel}
-                        onChange={e => setConfig(prev => ({...prev, emsModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emsModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
+                </div>
+
+                <div className="flex justify-between pt-4">
+                  <button onClick={() => setStep(1)} className="bg-gray-200 hover:bg-gray-300 px-6 py-3 rounded-lg">Zurück</button>
+                  <button onClick={finishAndBack} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg">Berechnungen Starten</button>
+                </div>
               </div>
-
-              {/* Optimizer */}
-              <div className="border rounded p-4 space-y-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={config.optimizerEnabled}
-                    onChange={e => setConfig(prev => ({...prev, optimizerEnabled: e.target.checked}))}
-                  />
-                  <span className="font-medium">Optimizer</span>
-                </label>
-                {config.optimizerEnabled && (
-                  <div className="grid gap-4 md:grid-cols-3 ml-6">
-                    <div>
-                      <label className="block text-sm mb-1">Hersteller</label>
-                      <select
-                        value={config.optimizerBrand}
-                        onChange={e => setConfig(prev => ({...prev, optimizerBrand: e.target.value, optimizerModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {optimizerBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Modell</label>
-                      <select
-                        value={config.optimizerModel}
-                        onChange={e => setConfig(prev => ({...prev, optimizerModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {optimizerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Anzahl</label>
-                      <input
-                        type="number"
-                        value={config.optimizerQty}
-                        onChange={e => setConfig(prev => ({...prev, optimizerQty: parseInt(e.target.value || '0', 10)}))}
-                        className="w-full rounded border px-3 py-2"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Carport */}
-              <div className="border rounded p-4 space-y-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={config.carportEnabled}
-                    onChange={e => setConfig(prev => ({...prev, carportEnabled: e.target.checked}))}
-                  />
-                  <span className="font-medium">Carport</span>
-                </label>
-                {config.carportEnabled && (
-                  <div className="grid gap-4 md:grid-cols-2 ml-6">
-                    <div>
-                      <label className="block text-sm mb-1">Hersteller</label>
-                      <select
-                        value={config.carportBrand}
-                        onChange={e => setConfig(prev => ({...prev, carportBrand: e.target.value, carportModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {carportBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Modell</label>
-                      <select
-                        value={config.carportModel}
-                        onChange={e => setConfig(prev => ({...prev, carportModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {carportModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Notstrom */}
-              <div className="border rounded p-4 space-y-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={config.emergencyPowerEnabled}
-                    onChange={e => setConfig(prev => ({...prev, emergencyPowerEnabled: e.target.checked}))}
-                  />
-                  <span className="font-medium">Notstrom</span>
-                </label>
-                {config.emergencyPowerEnabled && (
-                  <div className="grid gap-4 md:grid-cols-2 ml-6">
-                    <div>
-                      <label className="block text-sm mb-1">Hersteller</label>
-                      <select
-                        value={config.emergencyPowerBrand}
-                        onChange={e => setConfig(prev => ({...prev, emergencyPowerBrand: e.target.value, emergencyPowerModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emergencyPowerBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Modell</label>
-                      <select
-                        value={config.emergencyPowerModel}
-                        onChange={e => setConfig(prev => ({...prev, emergencyPowerModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emergencyPowerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tierabwehr */}
-              <div className="border rounded p-4 space-y-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={config.animalProtectionEnabled}
-                    onChange={e => setConfig(prev => ({...prev, animalProtectionEnabled: e.target.checked}))}
-                  />
-                  <span className="font-medium">Tierabwehr</span>
-                </label>
-                {config.animalProtectionEnabled && (
-                  <div className="grid gap-4 md:grid-cols-2 ml-6">
-                    <div>
-                      <label className="block text-sm mb-1">Hersteller</label>
-                      <select
-                        value={config.animalProtectionBrand}
-                        onChange={e => setConfig(prev => ({...prev, animalProtectionBrand: e.target.value, animalProtectionModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {animalProtectionBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Modell</label>
-                      <select
-                        value={config.animalProtectionModel}
-                        onChange={e => setConfig(prev => ({...prev, animalProtectionModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {animalProtectionModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Freitext */}
-          <div>
-            <label className="block text-sm mb-1">Sonstiges (frei)</label>
-            <input
-              value={config.otherComponentNote}
-              onChange={e => setConfig(prev => ({ ...prev, otherComponentNote: e.target.value }))}
-              maxLength={120}
-              className="w-full rounded border px-3 py-2"
-              placeholder="Freitext..."
-            />
-          </div>
-
-          <div className="flex justify-between pt-4">
-            <button onClick={() => setStep(1)} className="bg-gray-200 hover:bg-gray-300 px-6 py-3 rounded-lg">Zurück</button>
-            <button onClick={finishAndBack} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg">Berechnungen Starten</button>
-          </div>
-        </section>
+            </VStack>
+          </CardBody>
+        </Card>
       )}
 
-      <div className="text-center">
-        <Link to="/home" className="inline-block text-sm text-gray-500 hover:underline">← Zurück zur Startseite</Link>
-      </div>
+        <Center>
+          <Button as={Link} to="/home" variant="ghost" size="sm" color="neonGreen.400">
+            ← Zurück zur Startseite
+          </Button>
+        </Center>
+      </VStack>
     </div>
   );
 }
