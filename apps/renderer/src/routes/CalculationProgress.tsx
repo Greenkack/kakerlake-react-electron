@@ -3,25 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
-  VStack,
+  Card,
+  CardBody,
   HStack,
+  VStack,
   Heading,
   Text,
   Button,
-  Card,
-  CardBody,
   Progress,
-  Badge,
-  Divider,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Spinner,
-  Center,
-  List,
-  ListItem,
-  ListIcon
+  Center
 } from '@chakra-ui/react';
 
 interface CalculationStep {
