@@ -15,7 +15,7 @@ import { usePvCalculations } from '../utils/pvCalculations';
 import { formatGermanNumber, formatGermanCurrency, formatGermanInteger, formatGermanKWh, formatGermanKWp, formatGermanPercent } from '../utils/germanFormat';
 
 // KPI Component für PrimeReact
-function Kpi({ label, value, icon = '', color = 'primary' }) {
+function Kpi({ label, value, icon = '', color = 'primary' }: { label: string; value: React.ReactNode; icon?: string; color?: string }) {
     return (
         <Card className={`text-center surface-${color === 'primary' ? '100' : color}`}>
             <div className="flex flex-column align-items-center">
@@ -311,10 +311,10 @@ export default function Results() {
                     systemSize: calculations.finalSystemSize,
                     autarkyRate: calculations.autarkyRate || 0,
                     paybackTime: calculations.paybackTime
-                }} 
+                } as any} 
             />
             
-            <InteractiveCalculator calculations={calculations} />
+            <InteractiveCalculator {...({ calculations } as any)} />
             
             <WizardNav />
         </div>

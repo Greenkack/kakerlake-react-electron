@@ -2,14 +2,16 @@
 import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import 'primereact/resources/themes/dark/theme.css';
-import 'primereact/resources/primereact.min.css';
+import 'primereact/resources/primereact.min.css'; 
 import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
 import { Menubar } from 'primereact/menubar';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import { Badge } from 'primereact/badge';
 import { Divider } from 'primereact/divider';
 import { MenuItem } from 'primereact/menuitem';
+import { ProjectProvider } from './state/project';
 import './App.css';
 
 export default function App(): JSX.Element {
@@ -218,23 +220,25 @@ export default function App(): JSX.Element {
   );
 
   return (
-    <div className="kakerlake-app">
-      {/* Neon Green Header */}
-      <div className="bg-gray-900 border-bottom-2 border-primary shadow-4">
-        <Menubar 
-          model={items} 
-          start={start} 
-          end={end}
-          className="bg-gray-900 border-none shadow-none"
-        />
-      </div>
+    <ProjectProvider>
+      <div className="kakerlake-app">
+        {/* Neon Green Header */}
+        <div className="bg-gray-900 border-bottom-2 border-primary shadow-4">
+          <Menubar 
+            model={items} 
+            start={start} 
+            end={end}
+            className="bg-gray-900 border-none shadow-none"
+          />
+        </div>
 
-      {/* Main Content */}
-      <div className="main-content bg-gray-800 min-h-screen p-4">
-        <div className="max-w-7xl mx-auto">
-          <Outlet />
+        {/* Main Content */}
+        <div className="main-content bg-gray-800 min-h-screen p-4">
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </div>
       </div>
-    </div>
+    </ProjectProvider>
   );
 }

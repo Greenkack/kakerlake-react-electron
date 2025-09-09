@@ -15,7 +15,7 @@ import { usePvCalculations } from '../utils/pvCalculations';
 import { formatGermanNumber, formatGermanCurrency, formatGermanInteger, formatGermanKWh, formatGermanKWp, formatGermanPercent } from '../utils/germanFormat';
 
 // KPI Component für PrimeReact
-function Kpi({ label, value, icon = '', color = 'primary' }) {
+function Kpi({ label, value, icon = '', color = 'primary' }: { label: string; value: React.ReactNode; icon?: string; color?: string }) {
     return (
         <Card className={`text-center surface-${color === 'primary' ? '100' : color}`}>
             <div className="flex flex-column align-items-center">
@@ -30,9 +30,37 @@ function Kpi({ label, value, icon = '', color = 'primary' }) {
 export default function Results() {
     const { state } = useProject();
     const { mode, customer: c, building, consumption, options } = state;
-    const { input, results } = usePvCalculations();
+    
+    // DIREKTER localStorage Zugriff für Berechnungen
+    const savedCalculations = React.useMemo(() => {
+        try {
+            const stored = localStorage.getItem('kakerlake_solar_calculations');
+            return stored ? JSON.parse(stored) : null;
+        } catch (e) {
+            console.error('Error loading calculations:', e);
+            return null;
+        }
+    }, []);
 
-    // Erweiterte Live-Berechnungen basierend auf den echten eingegebenen Daten
+    // Results aus gespeicherten Berechnungen oder Fallback
+    const results = savedCalculations?.results || {
+        anlage_kwp: 10.0,
+        annual_pv_production_kwh: 12000,
+        self_consumption_rate_percent: 70,
+        autarky_rate_percent: 80,
+        annual_savings_euro: 2400,
+        payback_time_years: 8,
+        total_investment_brutto: 24000,
+        total_investment_netto: 20168,
+        autarkiegrad_prozent: 80,
+        jahres_ersparnis_eur: 2400,
+        break_even_jahr: 8,
+        pv_strompreis_ct_kwh: 12.5,
+        speichergrad_prozent: 60,
+        notstrom_kapazitaet_kwh_tag: 15.2
+    };
+
+    // Live-Berechnungen basierend auf gespeicherten Daten ODER Fallback-Daten
     const calculations = useMemo(() => {
         // Berechnungsparameter aus echten Formulardaten zusammenstellen
         const params = {
@@ -97,7 +125,23 @@ export default function Results() {
                     <i className="pi pi-chart-bar mr-2"></i>
                     Projektergebnisse
                 </h1>
-                <p className="text-600 text-lg">Detaillierte Kalkulation basierend auf Ihren Eingaben</p>
+                <p className="text-600 text-lg">
+                    {savedCalculations ? 
+                        `Berechnung vom ${new Date(savedCalculations.timestamp).toLocaleString('de-DE')}` : 
+                        'Demo-Daten (keine Berechnungen gefunden)'
+                    }
+                </p>
+                
+                {!savedCalculations && (
+                    <div className="mb-4">
+                        <Card className="bg-orange-100 border-orange-300">
+                            <div className="flex align-items-center gap-2 text-orange-800">
+                                <i className="pi pi-exclamation-triangle"></i>
+                                <span>Keine Berechnungen gefunden. Gehen Sie zum Solar-Kalkulator und führen Sie eine Berechnung durch.</span>
+                            </div>
+                        </Card>
+                    </div>
+                )}
             </div>
 
             {/* System-Übersicht */}
@@ -304,17 +348,15 @@ export default function Results() {
                 </div>
             </Card>
 
-            <SmartRecommendations 
-                data={{
-                    totalConsumption: consumption.annualKWhHousehold || 0,
-                    electricityPrice: 0.35,
-                    systemSize: calculations.finalSystemSize,
-                    autarkyRate: calculations.autarkyRate || 0,
-                    paybackTime: calculations.paybackTime
-                }} 
-            />
-            
-            <InteractiveCalculator calculations={calculations} />
+            {/* Komponenten temporär entfernt für bessere Debugging */}
+            <div className="text-center p-4">
+                <Button 
+                    label="Zurück zum Solar-Kalkulator" 
+                    icon="pi pi-arrow-left"
+                    className="p-button-success"
+                    onClick={() => window.location.href = '/solar-calculator'}
+                />
+            </div>
             
             <WizardNav />
         </div>

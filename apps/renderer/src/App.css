@@ -5,19 +5,19 @@
 @import 'primereact/resources/primereact.min.css';
 @import 'primeicons/primeicons.css';
 
-/* Neon Green & Black Theme Variables */
+/* Neon Green & Black Theme Variables - Force Override */
 :root {
-  --primary-color: #00ff00;
-  --primary-color-text: #000000;
-  --surface-ground: #0d0d0d;
-  --surface-section: #1a1a1a;
-  --surface-card: #2a2a2a;
-  --surface-overlay: #3a3a3a;
-  --surface-border: #00ff00;
-  --text-color: #e0ffe0;
-  --text-color-secondary: #b3ffb3;
-  --neon-glow: 0 0 20px rgba(0, 255, 0, 0.6);
-  --neon-glow-strong: 0 0 30px rgba(0, 255, 0, 0.9);
+  --primary-color: #00ff00 !important;
+  --primary-color-text: #000000 !important;
+  --surface-ground: #0d0d0d !important;
+  --surface-section: #1a1a1a !important;
+  --surface-card: #2a2a2a !important;
+  --surface-overlay: #3a3a3a !important;
+  --surface-border: #00ff00 !important;
+  --text-color: #e0ffe0 !important;
+  --text-color-secondary: #b3ffb3 !important;
+  --neon-glow: 0 0 20px rgba(0, 255, 0, 0.6) !important;
+  --neon-glow-strong: 0 0 30px rgba(0, 255, 0, 0.9) !important;
 }
 
 /* Global App Styling */

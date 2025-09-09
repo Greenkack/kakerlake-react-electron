@@ -19,6 +19,7 @@ import { Stepper } from 'primereact/stepper';
 import { StepperPanel } from 'primereact/stepperpanel';
 import { ConfirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
+import { useProject } from '../state/project';
 
 interface Product {
   id: string;
@@ -71,6 +72,7 @@ interface Results {
 
 function SolarCalculator() {
   const navigate = useNavigate();
+  const { state, actions } = useProject();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -196,7 +198,13 @@ function SolarCalculator() {
       setShowResults(true);
       setLoading(false);
       
-      // Save to localStorage
+      // Save to Project Context via updateOptions
+      actions.updateOptions({
+        pv_interest: true,
+        system_size_preference: systemCapacity > 15 ? 'large' : systemCapacity > 10 ? 'medium' : 'small',
+        module_type_preference: config.moduleModel
+      });
+
       localStorage.setItem('kakerlake_solar_calculations', JSON.stringify({
         config,
         results: calculationResults,
@@ -210,6 +218,11 @@ function SolarCalculator() {
           detail: `Anlagenleistung: ${systemCapacity.toFixed(1)} kWp` 
         });
       }
+
+      // Navigate to results after calculation
+      setTimeout(() => {
+        navigate('/project/results');
+      }, 1500);
     }, 2000);
   };
 

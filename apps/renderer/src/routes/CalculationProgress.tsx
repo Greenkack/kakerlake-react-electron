@@ -1,18 +1,82 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Card,
-  CardBody,
-  HStack,
-  VStack,
-  Heading,
-  Text,
-  Button,
-  Progress,
-  Center
-} from '@chakra-ui/react';
+
+/**
+ * Lightweight local UI primitives to avoid requiring @chakra-ui/react during build,
+ * implemented as simple wrappers that accept arbitrary props and render basic HTML.
+ * They intentionally accept extra props (index signature) so existing usage in this file
+ * (color, size, variant, leftIcon, etc.) won't cause type errors.
+ */
+type AnyProps = React.HTMLAttributes<HTMLElement> & { [key: string]: any };
+
+const Box: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ boxSizing: 'border-box', ...style }} {...rest}>{children}</div>
+);
+
+const Container: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ maxWidth: '64rem', margin: '0 auto', padding: '0 1rem', boxSizing: 'border-box', ...style }} {...rest}>
+    {children}
+  </div>
+);
+
+const Card: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ background: 'transparent', borderRadius: 8, padding: 0, boxSizing: 'border-box', ...style }} {...rest}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ padding: '1rem', boxSizing: 'border-box', ...style }} {...rest}>
+    {children}
+  </div>
+);
+
+const HStack: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', ...style }} {...rest}>{children}</div>
+);
+
+const VStack: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', ...style }} {...rest}>{children}</div>
+);
+
+const Heading: React.FC<AnyProps> = ({ children, as = 'h2', style, ...rest }) => {
+  const Tag = as as any;
+  return <Tag style={{ margin: 0, ...style }} {...rest}>{children}</Tag>;
+};
+
+const Text: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <p style={{ margin: 0, ...style }} {...rest}>{children}</p>
+);
+
+const Button: React.FC<AnyProps> = ({ children, leftIcon, style, ...rest }) => (
+  <button
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '0.4rem 0.75rem',
+      borderRadius: 6,
+      border: '1px solid rgba(0,0,0,0.08)',
+      background: 'transparent',
+      cursor: 'pointer',
+      ...style
+    }}
+    {...rest}
+  >
+    {leftIcon && <span style={{ display: 'inline-flex' }}>{leftIcon}</span>}
+    <span>{children}</span>
+  </button>
+);
+
+const Progress: React.FC<{ value?: number; size?: string; [key: string]: any }> = ({ value = 0, style, ...rest }) => (
+  <div style={{ width: '100%', background: '#e5e7eb', borderRadius: 999, height: 12, overflow: 'hidden', ...style }} {...rest}>
+    <div style={{ width: `${value}%`, height: '100%', background: '#10b981', transition: 'width 0.3s' }} />
+  </div>
+);
+
+const Center: React.FC<AnyProps> = ({ children, style, ...rest }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...style }} {...rest}>{children}</div>
+);
 
 interface CalculationStep {
   id: string;

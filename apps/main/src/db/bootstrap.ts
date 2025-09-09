@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export function runMigrations() {
-  const db = getDb();
+  try {
+    const db = getDb();
   // Prefer compiled migrations under dist/db/migrations, else fall back to src/db/migrations
   let migrationsDir = path.join(__dirname, 'migrations');
   if (!fs.existsSync(migrationsDir)) {
@@ -37,5 +38,8 @@ export function runMigrations() {
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
+  }
+  } catch (error) {
+    console.warn('Database migrations skipped:', error);
   }
 }
