@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { dynamicData, useDynamicData } from "../lib/dynamicDataSystem";
 
 export type Mode = "pv" | "hp" | "both";
 export type Anlagentyp = "Neuanlage" | "Bestandsanlage";
@@ -144,6 +145,34 @@ export interface ProjectOptions {
   // Sonstiges
   special_requests?: string;
   consultation_preference?: string;
+}
+
+// Dynamic Options & Scenarios
+export interface DynamicOption {
+  id: string;
+  category: string; // 'pv', 'battery', 'heatpump', 'ev_charging', 'future_planning'
+  label: string;
+  value: any;
+  type: 'boolean' | 'string' | 'number' | 'select';
+  impacts_calculation: boolean;
+  show_in_pdf: boolean;
+  scenario_key?: string; // For generating scenario comparisons
+  created_at: number;
+}
+
+export interface ProjectScenarios {
+  base_scenario: {
+    name: string;
+    description: string;
+    options: string[]; // Array of option IDs
+  };
+  scenarios: Array<{
+    id: string;
+    name: string;
+    description: string;
+    option_modifications: Record<string, any>;
+    calculated_results?: any;
+  }>;
 }
 
 export interface ProjectState {

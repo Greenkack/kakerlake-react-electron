@@ -175,7 +175,7 @@ class SolarCalculatorProductBridge:
                 price = pick('price_euro', 'preis', 'preis_stück', 'preis_stueck', default=0.0)
                 capacity_w = pick('capacity_w', 'pv_modul_leistung', 'leistung_w', default=None)
                 power_kw = pick('power_kw', 'wr_leistung_kw', default=None)
-                storage_kwh = pick('storage_kwh', 'storage_power_kw', 'kapazitaet_speicher_kwh', default=None)
+                storage_kwh = pick('storage_kwh', 'kapazitaet_speicher_kwh', default=None)
                 eff = pick('efficiency_percent', 'wirkungsgrad_prozent', default=None)
                 warranty = pick('warranty_years', 'garantie_zeit', default=None)
                 origin = pick('origin_country', 'hersteller_land', default=None)
@@ -195,8 +195,8 @@ class SolarCalculatorProductBridge:
                 if power_kw is not None and str(power_kw).strip() != '':
                     mapped['power_kw'] = float(power_kw)
                 if storage_kwh is not None and str(storage_kwh).strip() != '':
-                    # Store as storage_power_kw in database for React schema compatibility
-                    mapped['storage_power_kw'] = float(storage_kwh)
+                    # Map storage_kwh to storage_power_kw for React schema compatibility
+                    mapped['storage_kwh'] = float(storage_kwh)  # Keep as storage_kwh for now
                 if eff is not None and str(eff).strip() != '':
                     mapped['efficiency_percent'] = float(eff)
                 if warranty is not None and str(warranty).strip() != '':
@@ -792,16 +792,10 @@ class SolarCalculatorProductBridge:
                 if d.get('storage_power_kw') is not None:
                     d['kapazitaet_speicher_kwh'] = d['storage_power_kw']
                 std = self._to_standard_product_dict('Batteriespeicher', manufacturer, d)
-                # Fix storage_kwh from database fields - check multiple sources
+                # Fix storage_kwh from database storage_power_kw field
                 if d.get('storage_power_kw') and d.get('storage_power_kw') > 0:
                     std['storage_kwh'] = d['storage_power_kw']
                     std['kapazitaet_speicher_kwh'] = d['storage_power_kw']
-                elif d.get('capacity_w') and d.get('capacity_w') > 0:
-                    std['storage_kwh'] = d['capacity_w']
-                    std['kapazitaet_speicher_kwh'] = d['capacity_w']
-                elif d.get('pv_modul_leistung') and d.get('pv_modul_leistung') > 0:
-                    std['storage_kwh'] = d['pv_modul_leistung']
-                    std['kapazitaet_speicher_kwh'] = d['pv_modul_leistung']
                 results.append(std)
 
             return results
@@ -888,12 +882,12 @@ class SolarCalculatorProductBridge:
             except:
                 pass
             
-            # Fallback to React schema
+            # Fallback
             cursor.execute("""
-                SELECT DISTINCT brand 
+                SELECT DISTINCT manufacturer 
                 FROM products 
-                WHERE category = ? AND brand IS NOT NULL AND brand != ''
-                ORDER BY brand
+                WHERE category = ?
+                ORDER BY manufacturer
             """, [category])
             return [row[0] for row in cursor.fetchall()]
         except:
@@ -936,14 +930,14 @@ class SolarCalculatorProductBridge:
             except:
                 pass
             
-            # Fallback to React schema  
+            # Fallback
             cursor.execute(
                 """
-                SELECT id, category, model_name, brand, price_euro, 
+                SELECT id, category, model_name, manufacturer, price_euro, 
                        capacity_w, power_kw, efficiency_percent, length_m, width_m, weight_kg,
                        warranty_years, origin_country, description, created_at, updated_at
                 FROM products 
-                WHERE brand = ? AND category = ?
+                WHERE manufacturer = ? AND category = ?
                 ORDER BY model_name
                 """,
                 [manufacturer, category],
@@ -987,7 +981,7 @@ class SolarCalculatorProductBridge:
         std['preis_stück'] = val('preis_stück', 'price_euro', 'price', default=0)
         std['pv_modul_leistung'] = val('pv_modul_leistung', 'capacity_w', default=None)
         # Speicher kWh: products_complete hat kapazitaet_speicher_kwh; fallback products nutzt häufig power_kw für Speichergröße
-        std['kapazitaet_speicher_kwh'] = val('kapazitaet_speicher_kwh', 'storage_kwh', 'storage_power_kw', 'power_kw', default=None)
+        std['kapazitaet_speicher_kwh'] = val('kapazitaet_speicher_kwh', default=val('storage_kwh', 'storage_power_kw', 'power_kw', default=None))
         std['wr_leistung_kw'] = val('wr_leistung_kw', 'power_kw', default=None)
         std['ladezyklen_speicher'] = val('ladezyklen_speicher', 'max_cycles', default=None)
         std['garantie_zeit'] = val('garantie_zeit', 'warranty_years', default=None)
@@ -1010,8 +1004,7 @@ class SolarCalculatorProductBridge:
         std.setdefault('brand', std['hersteller'])
         std.setdefault('price', std['preis_stück'])
         std.setdefault('capacity_w', std['pv_modul_leistung'])
-        # Use storage_power_kw from database if available, otherwise use kapazitaet_speicher_kwh
-        std.setdefault('storage_kwh', val('storage_power_kw', default=std['kapazitaet_speicher_kwh']))
+        std.setdefault('storage_kwh', std['kapazitaet_speicher_kwh'])
         std.setdefault('power_kw', std['wr_leistung_kw'])
         std.setdefault('efficiency', std['wirkungsgrad_prozent'])
         std.setdefault('warranty_years', std['garantie_zeit'])

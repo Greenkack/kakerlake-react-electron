@@ -81,12 +81,26 @@ async function create() {
 		},
 	});
 
-	// Try multiple dev ports (5174 first, then 5173–5178) to match Vite's fallback behavior
-	const ports = [5174, 5173, 5175, 5176, 5177, 5178];
+	// Open DevTools in development for easier debugging
+	try {
+		w.webContents.openDevTools({ mode: 'detach' });
+	} catch {}
+
+	// Surface renderer console messages and load errors to the main process console
+	w.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+		console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`);
+	});
+	w.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
+		console.error('did-fail-load', { errorCode, errorDescription, validatedURL });
+	});
+
+	// Try multiple dev ports (5173–5178) to match Vite's fallback behavior
+	const ports = [5173, 5174, 5175, 5176, 5177, 5178];
 	let loaded = false;
 	for (const p of ports) {
 		try {
-			await w.loadURL(`http://localhost:${p}`);
+			await w.loadURL(`http://127.0.0.1:${p}`);
+			w.webContents.openDevTools({ mode: 'detach' });
 			loaded = true;
 			break;
 		} catch (e) {

@@ -1,6 +1,8 @@
 // apps/main/src/db/repositories/ProjectRepository.ts
 // Mirrors crm.py project CRUD functions exactly
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: better-sqlite3 has no bundled declaration file in this project
 import Database from 'better-sqlite3';
 
 // Local Project type fallback to avoid depending on external package paths.
@@ -24,7 +26,7 @@ export class ProjectRepository {
   async saveProject(projectData: Project): Promise<number | null> {
     try {
       const now = new Date().toISOString();
-      const sanitizedData = {
+      const sanitizedData: Project = {
         ...projectData,
         last_updated: now,
         creation_date: projectData.creation_date || now,

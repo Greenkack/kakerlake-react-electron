@@ -1,6 +1,8 @@
 // apps/main/src/db/repositories/CustomerRepository.ts
 // Mirrors crm.py customer CRUD functions exactly
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: better-sqlite3 has no bundled declaration file in this project
 import Database from 'better-sqlite3';
 
 /**
@@ -36,7 +38,7 @@ export class CustomerRepository {
   async saveCustomer(customerData: Customer): Promise<number | null> {
     try {
       const now = new Date().toISOString();
-      const sanitizedData = {
+      const sanitizedData: Customer = {
         ...customerData,
         last_updated: now,
         first_name: (customerData.first_name || '').trim() || 'Interessent',

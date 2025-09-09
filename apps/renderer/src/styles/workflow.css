@@ -1,0 +1,97 @@
+/* Workflow Integration Styles */
+
+.workflow-progress-horizontal[data-progress] {
+  width: calc(var(--progress) * 1%);
+}
+
+.workflow-progress-vertical[data-progress] {
+  height: calc(var(--progress) * 1%);
+}
+
+.workflow-mini-progress[data-progress] {
+  width: calc(var(--progress) * 100%);
+}
+
+/* Dynamic progress bars using CSS custom properties */
+.workflow-progress-horizontal {
+  --progress: attr(data-progress number, 0);
+  width: calc(var(--progress) * 1%);
+}
+
+.workflow-progress-vertical {
+  --progress: attr(data-progress number, 0);
+  height: calc(var(--progress) * 1%);
+}
+
+.workflow-mini-progress {
+  --progress: attr(data-progress number, 0);
+  width: calc(var(--progress) * 100%);
+}
+
+/* Fallback für Browser die attr() nicht unterstützen */
+@supports not (width: attr(data-progress number, 0%)) {
+  .workflow-progress-horizontal[data-progress="0"] { width: 0%; }
+  .workflow-progress-horizontal[data-progress="10"] { width: 10%; }
+  .workflow-progress-horizontal[data-progress="20"] { width: 20%; }
+  .workflow-progress-horizontal[data-progress="30"] { width: 30%; }
+  .workflow-progress-horizontal[data-progress="40"] { width: 40%; }
+  .workflow-progress-horizontal[data-progress="50"] { width: 50%; }
+  .workflow-progress-horizontal[data-progress="60"] { width: 60%; }
+  .workflow-progress-horizontal[data-progress="70"] { width: 70%; }
+  .workflow-progress-horizontal[data-progress="80"] { width: 80%; }
+  .workflow-progress-horizontal[data-progress="90"] { width: 90%; }
+  .workflow-progress-horizontal[data-progress="100"] { width: 100%; }
+  
+  .workflow-progress-vertical[data-progress="0"] { height: 0%; }
+  .workflow-progress-vertical[data-progress="10"] { height: 10%; }
+  .workflow-progress-vertical[data-progress="20"] { height: 20%; }
+  .workflow-progress-vertical[data-progress="30"] { height: 30%; }
+  .workflow-progress-vertical[data-progress="40"] { height: 40%; }
+  .workflow-progress-vertical[data-progress="50"] { height: 50%; }
+  .workflow-progress-vertical[data-progress="60"] { height: 60%; }
+  .workflow-progress-vertical[data-progress="70"] { height: 70%; }
+  .workflow-progress-vertical[data-progress="80"] { height: 80%; }
+  .workflow-progress-vertical[data-progress="90"] { height: 90%; }
+  .workflow-progress-vertical[data-progress="100"] { height: 100%; }
+}
+
+/* Animations für smooth transitions */
+.workflow-progress-horizontal,
+.workflow-progress-vertical,
+.workflow-mini-progress {
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Workflow Navigation Styles */
+.workflow-nav-item.active {
+  @apply bg-blue-100 border-blue-300 text-blue-800;
+}
+
+.workflow-nav-item.completed {
+  @apply bg-green-100 border-green-300 text-green-800;
+}
+
+.workflow-nav-item.error {
+  @apply bg-red-100 border-red-300 text-red-800;
+}
+
+/* Step indicators */
+.workflow-step-indicator {
+  @apply w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium;
+}
+
+.workflow-step-indicator.pending {
+  @apply bg-gray-200 text-gray-600;
+}
+
+.workflow-step-indicator.active {
+  @apply bg-blue-500 text-white;
+}
+
+.workflow-step-indicator.completed {
+  @apply bg-green-500 text-white;
+}
+
+.workflow-step-indicator.error {
+  @apply bg-red-500 text-white;
+}

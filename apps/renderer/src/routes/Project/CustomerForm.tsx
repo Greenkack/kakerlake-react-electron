@@ -12,10 +12,10 @@ export default function CustomerForm(): JSX.Element {
     actions.applyParsedAddress(parsed);
   };
 
+  // Minimal validation - only basic info required
   const requiredOk =
-    c.vorname.trim().length > 0 &&
-    c.nachname.trim().length > 0 &&
-    c.plz.trim().length > 0 &&
+    (c.vorname.trim().length > 0 || c.nachname.trim().length > 0) &&
+    c.plz.trim().length >= 3 &&
     c.ort.trim().length > 0;
 
   return (

@@ -7,7 +7,7 @@
     "watch": "tsup --watch --config tsup.config.ts",
     "watch:preload": "tsup --watch --config tsup.config.ts",
     "dev:electron": "wait-on -t 600000 http-get://127.0.0.1:5174 && electron .",
-    "dev": "concurrently -k \"npm run watch --prefix .\" \"npm run watch:preload --prefix .\" \"npm run dev:electron --prefix .\"",
+    "dev": "concurrently -k \"pnpm run watch\" \"pnpm run watch:preload\" \"pnpm run dev:electron\"",
     "build": "tsup --config tsup.config.ts"
   },
   "devDependencies": {

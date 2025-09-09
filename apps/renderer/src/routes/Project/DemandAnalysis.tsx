@@ -131,8 +131,8 @@ export default function DemandAnalysis() {
   const [annualKWhTotal, setAnnualKWhTotal] = useState<number>(0)
   const [euroPerKWh, setEuroPerKWh] = useState<number>(0)
 
-  // Validierung für "Weiter"-Button
-  const requiredOk = annualKWhHousehold !== '' && monthlyCostHouseholdEuro !== ''
+  // Minimal validation - either consumption OR cost is enough
+  const requiredOk = annualKWhHousehold !== '' || monthlyCostHouseholdEuro !== ''
 
   // Live-Berechnung der Gesamtkosten und kWh
   useEffect(() => {
@@ -455,7 +455,7 @@ export default function DemandAnalysis() {
 
       <WizardNav
         backTo="/project/building"
-        nextTo="/project/needs"
+        nextTo="/project/options"
         disabledNext={!requiredOk}
       />
     </div>

@@ -113,8 +113,8 @@ export default function AdditionalOptions() {
     state.options?.consultation_preference || ''
   )
 
-  // Mindestanforderungen für "Weiter"-Button
-  const requiredOk = pv_interest || hp_interest || ev_charging_interest
+  // No minimum requirements - user can proceed without selections
+  const requiredOk = true
 
   // Beim Verlassen/Weiter speichern wir in den Context
   useEffect(() => {
@@ -581,8 +581,8 @@ export default function AdditionalOptions() {
       </div>
 
       <WizardNav
-        backTo="/project/needs"
-        nextTo="/project/results"
+        backTo="/project/demand"
+        nextTo="/calc/results"
         disabledNext={!requiredOk}
       />
     </div>

@@ -1,427 +1,445 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import "./index.css";
+import { Menubar } from 'primereact/menubar';
+import { MenuItem } from 'primereact/menuitem';
+import './App.css';
 
-// Echte Module importieren
-import ProjectWizard from "./routes/Project/index";
-import SolarCalc from "./routes/SolarCalculator";
-import HeatpumpSim from "./routes/HeatpumpSimulator";
-import PdfHubReal from "./routes/PdfHub";
-import CRMMenuReal from "./routes/CRM/Menu";
-import AdminRouter from "./routes/Admin/index";
-import Dashboard from "./routes/Dashboard";
-import { ProjectProvider } from "./lib/projectContext";
+// Import existing project state and components
+import { ProjectProvider } from "./state/project";
+import CustomerForm from "./routes/Project/CustomerForm";
+import BuildingData from "./routes/Project/BuildingData";
+import DemandAnalysis from "./routes/Project/DemandAnalysis";
+import NeedsAnalysis from "./routes/Project/NeedsAnalysis";
+import AdditionalOptions from "./routes/Project/AdditionalOptions";
+import SolarCalculator from "./routes/SolarCalculator";
+import HeatpumpSimulator from "./routes/HeatpumpSimulator";
+import Results from "./routes/Results";
+import ModeSelect from "./routes/Project/ModeSelect";
+import AdvancedCalculations from "./routes/AdvancedCalculations";
 
-// TEMPORÄR: CalculationProgress direkt hier definieren bis die externe Datei funktioniert
-function CalculationProgress() {
-  const navigate = useNavigate();
-  const [progress, setProgress] = React.useState(0);
-  const [status, setStatus] = React.useState("Initialisiere Berechnungen...");
-  const [isComplete, setIsComplete] = React.useState(false);
+// Modern home dashboard component
+const HomeComponent = () => (
+  <div className="dashboard-grid">
+    {/* Welcome Card */}
+    <div className="card welcome-card">
+      <div className="card-header">
+        <h1 className="card-title">
+          <i className="pi pi-home icon-primary"></i>
+          Willkommen bei Kakerlake
+        </h1>
+        <p className="card-subtitle">Professionelle PV & Wärmepumpen Planungsplattform</p>
+      </div>
+      <div className="card-content">
+        <p>Ihre All-in-One Lösung für Photovoltaik- und Wärmepumpen-Projekte. Von der ersten Kundenanfrage bis zum fertigen Angebot.</p>
+      </div>
+    </div>
 
-  React.useEffect(() => {
-    // Simuliere Berechnungsfortschritt
-    const steps = [
-      { progress: 10, status: "Lade Konfiguration..." },
-      { progress: 25, status: "Berechne PV-Produktion..." },
-      { progress: 40, status: "Analysiere Eigenverbrauch..." },
-      { progress: 55, status: "Optimiere Speichernutzung..." },
-      { progress: 70, status: "Berechne Wirtschaftlichkeit..." },
-      { progress: 85, status: "Erstelle Visualisierungen..." },
-      { progress: 100, status: "Berechnungen abgeschlossen!" }
-    ];
+    {/* Quick Actions */}
+    <div className="card action-card">
+      <div className="card-header">
+        <h2 className="card-title">
+          <i className="pi pi-bolt icon-success"></i>
+          Schnellstart
+        </h2>
+      </div>
+      <div className="card-content">
+        <div className="action-buttons">
+          <a href="/project/mode" className="action-button">
+            <i className="pi pi-plus"></i>
+            <span>Neues Projekt</span>
+          </a>
+          <a href="/crm/dashboard" className="action-button">
+            <i className="pi pi-chart-line"></i>
+            <span>CRM Dashboard</span>
+          </a>
+          <a href="/calc/solar" className="action-button">
+            <i className="pi pi-sun"></i>
+            <span>Solar Kalkulator</span>
+          </a>
+          <a href="/calc/heatpump" className="action-button">
+            <i className="pi pi-cog"></i>
+            <span>Wärmepumpe</span>
+          </a>
+        </div>
+      </div>
+    </div>
 
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      if (currentStep < steps.length) {
-        setProgress(steps[currentStep].progress);
-        setStatus(steps[currentStep].status);
-        currentStep++;
-      } else {
-        clearInterval(interval);
-        
-        try {
-          // Lade gespeicherte Konfiguration
-          const savedConfig = localStorage.getItem('kakerlake_solar_config');
-          const config = savedConfig ? JSON.parse(savedConfig) : {
-            moduleQty: 20,
-            withStorage: true,
-            storageDesiredKWh: 10
-          };
-          
-          // Berechne realistische Werte basierend auf der Konfiguration
-          const moduleWp = 440; // Standard Viessmann Modul
-          const moduleQty = config.moduleQty || 20;
-          const anlage_kwp = (moduleQty * moduleWp) / 1000;
-          const sonnenstunden = 950; // kWh/kWp/Jahr in Deutschland
-          const annual_pv_production_kwh = anlage_kwp * sonnenstunden;
-          const eigenverbrauch_anteil = config.withStorage ? 0.65 : 0.35;
-          const eigenverbrauch_kwh = annual_pv_production_kwh * eigenverbrauch_anteil;
-          const einspeisung_kwh = annual_pv_production_kwh - eigenverbrauch_kwh;
-          const jahresverbrauch_kwh = 4500; // Standard Haushalt
-          const autarkiegrad = Math.min((eigenverbrauch_kwh / jahresverbrauch_kwh) * 100, 100);
-          const strompreis_cent = 35;
-          const einspeiseverguetung_cent = 8.2;
-          const invest_per_kwp = config.withStorage ? 1800 : 1400;
-          const total_investment = anlage_kwp * invest_per_kwp;
-          const jaehrliche_ersparnis = (eigenverbrauch_kwh * strompreis_cent + einspeisung_kwh * einspeiseverguetung_cent) / 100;
-          const amortisation = total_investment / jaehrliche_ersparnis;
-          const co2_ersparnis_kg = annual_pv_production_kwh * 0.4;
-          
-          // Speichere realistische Ergebnisse für Dashboard
-          const results = {
-            config: config,
-            results: {
-              anlage_kwp: anlage_kwp,
-              annual_pv_production_kwh: Math.round(annual_pv_production_kwh),
-              specific_yield_kwh_per_kwp: sonnenstunden,
-              performance_ratio_percent: 85,
-              self_consumption_rate_percent: eigenverbrauch_anteil * 100,
-              autarky_rate_percent: autarkiegrad,
-              annual_grid_feed_kwh: Math.round(einspeisung_kwh),
-              annual_grid_consumption_kwh: Math.round(jahresverbrauch_kwh - eigenverbrauch_kwh),
-              total_investment_netto: total_investment,
-              total_investment_brutto: total_investment * 1.19,
-              payback_time_years: amortisation,
-              npv_25_years: jaehrliche_ersparnis * 25 - total_investment,
-              irr_percent: (jaehrliche_ersparnis / total_investment) * 100,
-              lcoe_cent_per_kwh: (total_investment / (annual_pv_production_kwh * 25)) * 100,
-              annual_savings_euro: jaehrliche_ersparnis,
-              annual_co2_savings_kg: co2_ersparnis_kg,
-              tree_equivalent: Math.round(co2_ersparnis_kg / 12.5),
-              car_km_equivalent: Math.round(co2_ersparnis_kg / 0.12),
-              storage_capacity_kwh: config.withStorage ? (config.storageDesiredKWh || 10) : 0,
-              storage_cycles_per_year: config.withStorage ? 250 : 0,
-              storage_efficiency_percent: config.withStorage ? 95 : 0,
-            },
-            timestamp: new Date().toISOString()
-          };
-          
-          localStorage.setItem('kakerlake_solar_calculations', JSON.stringify(results));
-          console.log('Berechnungsergebnisse gespeichert:', results);
-        } catch (error) {
-          console.error('Fehler beim Speichern der Berechnungen:', error);
-        }
-        
-        setIsComplete(true);
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Navigation Header */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-800">Berechnungen</h1>
-            <div className="flex gap-3">
-              <button
-                onClick={() => navigate('/solar')}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <span>←</span>
-                <span>Zurück</span>
-              </button>
-              <button
-                onClick={() => navigate('/home')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-              >
-                <span>🏠</span>
-                <span>Hauptmenü</span>
-              </button>
+    {/* Project Workflow */}
+    <div className="card workflow-card">
+      <div className="card-header">
+        <h2 className="card-title">
+          <i className="pi pi-sitemap icon-warning"></i>
+          Projekt-Workflow
+        </h2>
+      </div>
+      <div className="card-content">
+        <div className="workflow-steps">
+          <div className="workflow-step">
+            <div className="step-number">1</div>
+            <div className="step-content">
+              <h3>Anlagenmodus wählen</h3>
+              <p>PV, Wärmepumpe oder Kombination</p>
+            </div>
+          </div>
+          <div className="workflow-step">
+            <div className="step-number">2</div>
+            <div className="step-content">
+              <h3>Kundendaten erfassen</h3>
+              <p>Kontakt und Gebäudeinformationen</p>
+            </div>
+          </div>
+          <div className="workflow-step">
+            <div className="step-number">3</div>
+            <div className="step-content">
+              <h3>Bedarfsanalyse</h3>
+              <p>Verbrauch und Anforderungen</p>
+            </div>
+          </div>
+          <div className="workflow-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
+              <h3>Konfiguration & Berechnung</h3>
+              <p>Technische Auslegung und Wirtschaftlichkeit</p>
             </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            {isComplete ? '✅ Berechnung abgeschlossen!' : '🔄 Berechnung läuft...'}
-          </h2>
-          
-          <div className="mb-8">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>{status}</span>
-              <span>{progress}%</span>
+    {/* Recent Projects (Placeholder) */}
+    <div className="card recent-card">
+      <div className="card-header">
+        <h2 className="card-title">
+          <i className="pi pi-clock icon-purple"></i>
+          Letzte Projekte
+        </h2>
+      </div>
+      <div className="card-content">
+        <div className="recent-projects">
+          <div className="project-item">
+            <div className="project-info">
+              <h4>Familie Müller - PV Anlage</h4>
+              <p>12.5 kWp • Bearbeitet vor 2 Stunden</p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-green-500 h-full transition-all duration-500 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+            <div className="project-status status-draft">Entwurf</div>
           </div>
+          <div className="project-item">
+            <div className="project-info">
+              <h4>Gewerbe Schmidt GmbH</h4>
+              <p>45.8 kWp + Wärmepumpe • Vor 1 Tag</p>
+            </div>
+            <div className="project-status status-ready">Bereit</div>
+          </div>
+          <div className="project-item">
+            <div className="project-info">
+              <h4>Einfamilienhaus Weber</h4>
+              <p>8.2 kWp • Vor 3 Tagen</p>
+            </div>
+            <div className="project-status status-sent">Gesendet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
-          {isComplete && (
-            <div className="border-t pt-6">
-              <p className="text-gray-600 mb-6 text-center">
-                Die Berechnungen wurden erfolgreich abgeschlossen und gespeichert.
-                Sie können nun die Ergebnisse im Dashboard einsehen oder zur Konfiguration zurückkehren.
-              </p>
-              
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <span>📊</span>
-                  <span>Zum Dashboard</span>
-                </button>
-                <button
-                  onClick={() => navigate('/home')}
-                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors"
-                >
-                  Zum Hauptmenü
-                </button>
+// Modern page wrapper for functional components
+const ModernPageWrapper = ({ 
+  title, 
+  category, 
+  children 
+}: { 
+  title: string; 
+  category?: string; 
+  children: React.ReactNode 
+}) => {
+  const getCategoryIcon = (cat: string) => {
+    const icons = {
+      project: 'pi-file',
+      calc: 'pi-calculator', 
+      pdf: 'pi-file-pdf',
+      crm: 'pi-users',
+      planning: 'pi-sitemap',
+      admin: 'pi-cog'
+    };
+    return icons[cat as keyof typeof icons] || 'pi-file';
+  };
+
+  return (
+    <div className="modern-page-container">
+      <div className={`page-header page-header-${category || 'default'}`}>
+        <div className="page-header-content">
+          <div className="page-icon">
+            <i className={`pi ${getCategoryIcon(category || '')}`}></i>
+          </div>
+          <div className="page-title-section">
+            <h1 className="page-title">{title}</h1>
+            <p className="page-subtitle">Professionelle Datenerfassung & Konfiguration</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="page-content">
+        <div className="card functional-content-card">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Enhanced placeholder page with category-specific designs
+const PlaceholderPage = ({ title, category }: { title: string; category?: string }) => {
+  const getCategoryConfig = (cat: string) => {
+    const configs = {
+      pdf: { icon: 'pi-file-pdf', color: 'icon-warning', gradient: 'var(--gradient-secondary)' },
+      crm: { icon: 'pi-users', color: 'icon-purple', gradient: 'var(--gradient-success)' },
+      planning: { icon: 'pi-sitemap', color: 'icon-primary', gradient: 'var(--gradient-primary)' },
+      admin: { icon: 'pi-cog', color: 'icon-warning', gradient: 'var(--gradient-secondary)' }
+    };
+    return configs[cat as keyof typeof configs] || { icon: 'pi-wrench', color: 'icon-warning', gradient: 'var(--gradient-primary)' };
+  };
+
+  const config = getCategoryConfig(category || '');
+  
+  return (
+    <div className="modern-page-container">
+      <div className={`page-header page-header-${category || 'default'}`}>
+        <div className="page-header-content">
+          <div className="page-icon">
+            <i className={`pi ${config.icon}`}></i>
+          </div>
+          <div className="page-title-section">
+            <h1 className="page-title">{title}</h1>
+            <p className="page-subtitle">Professioneller Bereich in Entwicklung</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="page-content">
+        <div className="feature-cards">
+          <div className="card feature-card">
+            <div className="card-header">
+              <h2 className="card-title">
+                <i className="pi pi-star icon-warning"></i>
+                Kommende Features
+              </h2>
+            </div>
+            <div className="card-content">
+              <div className="feature-list">
+                <div className="feature-item">
+                  <i className="pi pi-check-circle icon-success"></i>
+                  <span>Moderne und intuitive Benutzeroberfläche</span>
+                </div>
+                <div className="feature-item">
+                  <i className="pi pi-check-circle icon-success"></i>
+                  <span>Nahtlose Integration mit bestehenden Workflows</span>
+                </div>
+                <div className="feature-item">
+                  <i className="pi pi-check-circle icon-success"></i>
+                  <span>Erweiterte Funktionalitäten und Automatisierung</span>
+                </div>
+                <div className="feature-item">
+                  <i className="pi pi-check-circle icon-success"></i>
+                  <span>Responsive Design für alle Geräte</span>
+                </div>
               </div>
             </div>
-          )}
-          
-          {!isComplete && (
-            <div className="text-center text-sm text-gray-500 mt-6">
-              <p>Bitte warten Sie, während wir Ihre Solaranlage optimieren...</p>
+          </div>
+
+          <div className="card status-card">
+            <div className="card-header">
+              <h2 className="card-title">
+                <i className="pi pi-info-circle icon-primary"></i>
+                Entwicklungsstatus
+              </h2>
             </div>
-          )}
+            <div className="card-content">
+              <div className="status-info">
+                <div className="status-item">
+                  <span className="status-label">Fortschritt:</span>
+                  <div className="progress-bar">
+                    <div className="progress-fill"></div>
+                  </div>
+                  <span className="status-value">65%</span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Geschätzte Fertigstellung:</span>
+                  <span className="status-value">Q4 2025</span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Priorität:</span>
+                  <span className="status-badge high">Hoch</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card navigation-card">
+          <div className="card-content">
+            <div className="navigation-buttons">
+              <button className="p-button p-button-outlined" onClick={() => window.history.back()}>
+                <i className="pi pi-arrow-left"></i>
+                Zurück zur vorherigen Seite
+              </button>
+              <a href="/home" className="p-button">
+                <i className="pi pi-home"></i>
+                Zur Startseite
+              </a>
+              <a href="/project/mode" className="p-button p-button-success">
+                <i className="pi pi-plus"></i>
+                Neues Projekt starten
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
 
-// Placeholder Results component um den Fehler zu vermeiden
-function Results() {
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Ergebnisse</h1>
-          <p className="text-gray-600">Diese Seite wird noch entwickelt...</p>
-        </div>
-      </div>
+// App Layout Component
+function AppLayout() {
+  const menuItems: MenuItem[] = [
+    {
+      label: 'Projekt',
+      icon: 'pi pi-fw pi-file',
+      items: [
+        { label: 'Anlagenmodus', url: '/project/mode' },
+        { label: 'Kundendaten', url: '/project/customer' },
+        { label: 'Gebäudedaten', url: '/project/building' },
+        { label: 'Bedarfsanalyse', url: '/project/demand' },
+        { label: 'Zusatzoptionen', url: '/project/options' }
+      ]
+    },
+    {
+      label: 'Kalkulation',
+      icon: 'pi pi-fw pi-calculator',
+      items: [
+        { label: 'Solarkalkulator', url: '/calc/solar' },
+        { label: 'Wärmepumpen-Sim', url: '/calc/heatpump' },
+        { label: 'Ergebnisse & Dashboard', url: '/calc/results' },
+        { label: 'Erweiterte Berechnungen', url: '/calc/advanced' }
+      ]
+    },
+    {
+      label: 'PDF-Hub',
+      icon: 'pi pi-fw pi-file-pdf',
+      items: [
+        { label: 'Standard-PDF', url: '/pdf/standard' },
+        { label: 'Erweiterte PDFs', url: '/pdf/extended' },
+        { label: 'Multi-PDF', url: '/pdf/multi' },
+        { label: 'Vorschau', url: '/pdf/preview' }
+      ]
+    },
+    {
+      label: 'CRM',
+      icon: 'pi pi-fw pi-users',
+      items: [
+        { label: 'Dashboard', url: '/crm/dashboard' },
+        { label: 'Kundenverwaltung', url: '/crm/customers' },
+        { label: 'Pipeline & Workflows', url: '/crm/pipeline' },
+        { label: 'Kalender', url: '/crm/calendar' },
+        { label: 'Schnellkalkulation', url: '/crm/quick-calc' }
+      ]
+    },
+    {
+      label: 'Planung',
+      icon: 'pi pi-fw pi-sitemap',
+      items: [
+        { label: 'Informationsportal', url: '/planning/info' },
+        { label: 'Dokumente', url: '/planning/documents' }
+      ]
+    },
+    {
+      label: 'Admin',
+      icon: 'pi pi-fw pi-cog',
+      items: [
+        { label: 'Login', url: '/admin/login' },
+        { label: 'Firmenverwaltung', url: '/admin/companies' },
+        { label: 'Produktverwaltung', url: '/admin/products' },
+        { label: 'Preis-Matrix', url: '/admin/price-matrix' },
+        { label: 'Tarifverwaltung', url: '/admin/tariffs' },
+        { label: 'Einstellungen', url: '/admin/settings' }
+      ]
+    }
+  ];
+
+  const start = (
+    <div className="app-brand">
+      <i className="pi pi-flash"></i>
+      <span>Kakerlake – PV/WP</span>
     </div>
   );
-}
 
-function App() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <HeaderNav />
-      <main className="container mx-auto p-6">
-        <Routes>
-          <Route index element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/project/*" element={<ProjectWizard />} />
-          <Route path="/solar" element={<SolarCalc />} />
-          <Route path="/calculation-progress" element={<CalculationProgress />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/results" element={<Results />} />
-          
-          {/* Alias für Menü-Links */}
-          <Route path="/calc/solar" element={<SolarCalc />} />
-          <Route path="/heatpump" element={<HeatpumpSim />} />
-          <Route path="/pdf/*" element={<PdfHubReal />} />
-          <Route path="/crm" element={<CRMMenuReal />} />
-          <Route path="/admin/*" element={<AdminRouter />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+    <div className="kakerlake-app">
+      <Menubar model={menuItems} start={start} className="mb-4" />
+      <main className="p-4">
+        <Outlet />
       </main>
     </div>
   );
 }
 
-function HeaderNav() {
-  const navigate = useNavigate();
+// Main App Component with Router
+function App() {
   return (
-    <header className="bg-white shadow p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-blue-600">🔧 Kakerlake PV/WP Tool</h1>
-          <p className="text-sm text-gray-600">Photovoltaik und Wärmepumpen Planungstool</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate(-1)} className="text-sm px-3 py-2 rounded bg-gray-100 hover:bg-gray-200">← Zurück</button>
-          <Link to="/home" className="text-sm px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">🏠 Hauptmenü</Link>
-        </div>
-      </div>
-    </header>
+    <ProjectProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<Navigate to="/home" replace />} />
+            <Route path="home" element={<HomeComponent />} />
+            
+            {/* Project Routes - Real Components with Modern Layout */}
+            <Route path="project/mode" element={<ModernPageWrapper title="Anlagenmodus auswählen" category="project"><ModeSelect /></ModernPageWrapper>} />
+            <Route path="project/customer" element={<ModernPageWrapper title="Kundendaten erfassen" category="project"><CustomerForm /></ModernPageWrapper>} />
+            <Route path="project/building" element={<ModernPageWrapper title="Gebäudedaten & Eigenschaften" category="project"><BuildingData /></ModernPageWrapper>} />
+            <Route path="project/demand" element={<ModernPageWrapper title="Bedarfsanalyse & Verbrauch" category="project"><DemandAnalysis /></ModernPageWrapper>} />
+            <Route path="project/options" element={<ModernPageWrapper title="Zusatzoptionen & Konfiguration" category="project"><AdditionalOptions /></ModernPageWrapper>} />
+            
+            {/* Calculation Routes - Real Components with Modern Layout */}
+            <Route path="calc/solar" element={<ModernPageWrapper title="Solarkalkulator & PV-Auslegung" category="calc"><SolarCalculator /></ModernPageWrapper>} />
+            <Route path="calc/heatpump" element={<ModernPageWrapper title="Wärmepumpen-Simulator" category="calc"><HeatpumpSimulator /></ModernPageWrapper>} />
+            <Route path="calc/results" element={<ModernPageWrapper title="Ergebnisse & Dashboard" category="calc"><Results /></ModernPageWrapper>} />
+            <Route path="calc/advanced" element={<AdvancedCalculations />} />
+            
+            {/* PDF Routes */}
+            <Route path="pdf/standard" element={<PlaceholderPage title="Standard-PDF Erstellung" category="pdf" />} />
+            <Route path="pdf/extended" element={<PlaceholderPage title="Erweiterte PDF-Funktionen" category="pdf" />} />
+            <Route path="pdf/multi" element={<PlaceholderPage title="Multi-PDF Generator" category="pdf" />} />
+            <Route path="pdf/preview" element={<PlaceholderPage title="PDF Vorschau & Editor" category="pdf" />} />
+            
+            {/* CRM Routes */}
+            <Route path="crm/dashboard" element={<PlaceholderPage title="CRM Dashboard & Analytics" category="crm" />} />
+            <Route path="crm/customers" element={<PlaceholderPage title="Kundenverwaltung & Kontakte" category="crm" />} />
+            <Route path="crm/pipeline" element={<PlaceholderPage title="Pipeline & Workflow Management" category="crm" />} />
+            <Route path="crm/calendar" element={<PlaceholderPage title="Termin- & Kalenderverwaltung" category="crm" />} />
+            <Route path="crm/quick-calc" element={<PlaceholderPage title="Schnellkalkulation & Angebote" category="crm" />} />
+            
+            {/* Planning Routes */}
+            <Route path="planning/info" element={<PlaceholderPage title="Informationsportal & Wissensbasis" category="planning" />} />
+            <Route path="planning/documents" element={<PlaceholderPage title="Dokument- & Dateiverwaltung" category="planning" />} />
+            
+            {/* Admin Routes */}
+            <Route path="admin/login" element={<PlaceholderPage title="Administratoren Login" category="admin" />} />
+            <Route path="admin/companies" element={<PlaceholderPage title="Firmen- & Unternehmensverwaltung" category="admin" />} />
+            <Route path="admin/products" element={<PlaceholderPage title="Produkt- & Komponentenverwaltung" category="admin" />} />
+            <Route path="admin/price-matrix" element={<PlaceholderPage title="Preis-Matrix & Kalkulation" category="admin" />} />
+            <Route path="admin/tariffs" element={<PlaceholderPage title="Tarif- & Gebührenverwaltung" category="admin" />} />
+            <Route path="admin/settings" element={<PlaceholderPage title="System- & Anwendungseinstellungen" category="admin" />} />
+            
+            <Route path="*" element={<PlaceholderPage title="❓ Seite nicht gefunden" />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ProjectProvider>
   );
 }
 
-function Home() {
-  const navigate = useNavigate();
-
-  const clearAllData = () => {
-    if (confirm('⚠️ ACHTUNG: Alle gespeicherten Projektdaten löschen?\n\nDies löscht:\n- Kundendaten\n- Gebäudedaten\n- Verbrauchsdaten\n- Alle Projekteinstellungen\n\nDieser Vorgang kann nicht rückgängig gemacht werden!')) {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('kakerlake')) {
-          localStorage.removeItem(key);
-        }
-      });
-      alert('✅ Alle Projektdaten wurden erfolgreich gelöscht!');
-      window.location.reload();
-    }
-  };
-
-  const menuItems = [
-    { 
-      id: 'project', 
-      title: 'Neues Projekt', 
-      icon: '🏗️', 
-      color: 'text-blue-600', 
-      path: '/project',
-      description: 'Starten Sie ein neues PV-Projekt mit vollständiger Bedarfsanalyse' 
-    },
-    { 
-      id: 'solar', 
-      title: 'Solar-Rechner', 
-      icon: '☀️', 
-      color: 'text-green-600', 
-      path: '/solar',
-      description: 'Schnelle Kalkulation für Photovoltaik-Anlagen' 
-    },
-    { 
-      id: 'dashboard', 
-      title: 'Dashboard', 
-      icon: '📊', 
-      color: 'text-cyan-600', 
-      path: '/dashboard',
-      description: 'Berechnungsergebnisse und KPI-Visualisierungen' 
-    },
-    { 
-      id: 'heatpump', 
-      title: 'Wärmepumpe', 
-      icon: '🔥', 
-      color: 'text-orange-600', 
-      path: '/heatpump',
-      description: 'Wärmepumpen-Simulation und Dimensionierung' 
-    },
-    { 
-      id: 'pdf', 
-      title: 'PDF-Generator', 
-      icon: '📄', 
-      color: 'text-purple-600', 
-      path: '/pdf',
-      description: 'Professionelle Angebote und Dokumentationen' 
-    },
-    { 
-      id: 'crm', 
-      title: 'CRM', 
-      icon: '👥', 
-      color: 'text-indigo-600', 
-      path: '/crm',
-      description: 'Kundenverwaltung und Projekt-Pipeline' 
-    },
-    { 
-      id: 'admin', 
-      title: 'Administration', 
-      icon: '⚙️', 
-      color: 'text-gray-600', 
-      path: '/admin',
-      description: 'System-Einstellungen und Konfiguration' 
-    }
-  ];
-
-  const handleMenuClick = (path: string) => {
-    console.log(`Navigating to: ${path}`);
-    navigate(path);
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Willkommen bei Kakerlake</h2>
-        <p className="text-gray-600">Ihr professionelles Tool für PV- und Wärmepumpen-Projekte</p>
-      </div>
-      
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {menuItems.map((item) => (
-          <div 
-            key={item.id}
-            onClick={() => handleMenuClick(item.path)}
-            className="bg-white p-6 rounded-lg shadow border hover:shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
-          >
-            <div className="text-2xl mb-3">{item.icon}</div>
-            <h3 className={`font-semibold text-lg mb-2 ${item.color}`}>{item.title}</h3>
-            <p className="text-gray-600">{item.description}</p>
-          </div>
-        ))}
-      </div>
-      
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-        <h3 className="font-semibold text-green-800 flex items-center mb-2">
-          ✅ System Status
-        </h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-green-700">App Status:</span>
-            <span className="text-green-800 font-medium">Läuft erfolgreich</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-green-700">Aktueller Pfad:</span>
-            <span className="text-green-800 font-mono">{window.location.pathname}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-green-700">Build-Zeit:</span>
-            <span className="text-green-800 font-mono">{new Date().toLocaleString('de-DE')}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="font-semibold text-red-800 flex items-center mb-2">
-          🛠️ Entwickler-Tools
-        </h3>
-        <p className="text-red-700 text-sm mb-4">
-          Diese Funktionen sind für Entwicklung und Debugging gedacht.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={clearAllData}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            🗑️ Alle Projektdaten löschen
-          </button>
-          <button
-            onClick={() => {
-              console.log('localStorage contents:', localStorage);
-              alert('Siehe Browser-Konsole (F12) für localStorage-Inhalte');
-            }}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            🔍 localStorage anzeigen
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NotFound() {
-  return (
-    <div className="text-center py-12">
-      <div className="text-6xl mb-4">🔍</div>
-      <h2 className="text-2xl font-bold text-red-600 mb-2">Seite nicht gefunden</h2>
-      <p className="text-gray-600 mb-6">Die angeforderte Seite existiert nicht.</p>
-      <Link 
-        to="/home" 
-        className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors"
-      >
-        🏠 Zur Startseite
-      </Link>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <ProjectProvider>
-        <App />
-      </ProjectProvider>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+root.render(<App />);

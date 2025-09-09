@@ -1,6 +1,8 @@
 // apps/main/src/db/repositories/ProductRepository.ts
 // Mirrors product_db.py CRUD functions exactly
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: better-sqlite3 has no bundled declaration file in this project
 import Database from 'better-sqlite3';
 
 // Local Product type fallback to avoid depending on the monorepo package during build.

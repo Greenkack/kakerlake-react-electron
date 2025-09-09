@@ -92,14 +92,14 @@ export default function InteractiveCalculator({
               step="0.5"
               value={systemSize}
               onChange={(e) => setSystemSize(parseFloat(e.target.value))}
+              title={`PV-Anlagengröße: ${systemSize} kWp`}
+              aria-label="PV-Anlagengröße"
+              placeholder="PV-Anlagengröße"
               className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>3 kWp</span>
               <span>{maxSystemSize} kWp {roofArea && "(max für Ihr Dach)"}</span>
-            </div>
-          </div>
-
           {/* Batteriegröße */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -112,14 +112,14 @@ export default function InteractiveCalculator({
               step="2.5"
               value={batterySize}
               onChange={(e) => setBatterySize(parseFloat(e.target.value))}
+              title={`Batteriegröße: ${batterySize} kWh`}
+              aria-label="Batteriegröße"
+              placeholder="Batteriegröße"
               className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>0 kWh</span>
               <span>25 kWh</span>
-            </div>
-          </div>
-
           {/* Strompreis */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -132,7 +132,16 @@ export default function InteractiveCalculator({
               step="0.01"
               value={electricityPrice}
               onChange={(e) => setElectricityPrice(parseFloat(e.target.value))}
+              title={`Strompreis: ${electricityPrice.toFixed(2)} €/kWh`}
+              aria-label="Strompreis"
+              placeholder="Strompreis"
               className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-slate-500 mt-1">
+              <span>25 ct</span>
+              <span>50 ct</span>
+            </div>
+          </div>
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>25 ct</span>

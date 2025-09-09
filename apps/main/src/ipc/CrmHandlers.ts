@@ -2,6 +2,8 @@
 // IPC handlers for CRM operations - mirrors crm.py functions exactly
 
 import { ipcMain } from 'electron';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: better-sqlite3 has no bundled declaration file in this project
 import Database from 'better-sqlite3';
 import { CustomerRepository } from '../db/repositories/CustomerRepository';
 import { ProjectRepository } from '../db/repositories/ProjectRepository';
