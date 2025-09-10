@@ -7,6 +7,7 @@ import { registerCrmHandlers } from './ipc/CrmHandlers';
 import { registerProductHandlers } from './ipc/ProductHandlers';
 import { registerPdfHandlers } from './ipc/PdfHandlers';
 import { CalculationHandlers } from './ipc/CalculationHandlers';
+import { calculationHandler } from './handlers/calculation';
 
 // Global Node.js variables declaration for TypeScript
 declare const __dirname: string;

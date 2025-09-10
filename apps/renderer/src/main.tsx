@@ -8,6 +8,7 @@ import './App.css';
 
 // Import existing project state and components
 import { ProjectProvider } from "./state/project";
+import { AppProvider } from "./context/AppContext";
 import CustomerForm from "./routes/Project/CustomerForm";
 import BuildingData from "./routes/Project/BuildingData";
 import DemandAnalysis from "./routes/Project/DemandAnalysis";
@@ -21,6 +22,7 @@ import AdvancedCalculations from "./routes/AdvancedCalculations";
 
 // Import PrimeReact Dashboard
 import PVOfferExample from "./components/PVOfferExample";
+import ComponentsDemo from "./routes/ComponentsDemo";
 
 // Modern home dashboard component
 const HomeComponent = () => (
@@ -329,6 +331,13 @@ function AppLayout() {
       ]
     },
     {
+      label: 'Demo',
+      icon: 'pi pi-fw pi-star',
+      items: [
+        { label: 'Neue Komponenten', url: '/demo/components' }
+      ]
+    },
+    {
       label: 'PDF-Hub',
       icon: 'pi pi-fw pi-file-pdf',
       items: [
@@ -391,8 +400,9 @@ function AppLayout() {
 // Main App Component with Router
 function App() {
   return (
-    <ProjectProvider>
-      <BrowserRouter>
+    <AppProvider>
+      <ProjectProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/home" replace />} />
@@ -413,6 +423,9 @@ function App() {
             
             {/* Modern Dashboard Route */}
             <Route path="dashboard/modern" element={<PVOfferExample />} />
+            
+            {/* Components Demo Route */}
+            <Route path="demo/components" element={<ComponentsDemo />} />
             
             {/* PDF Routes */}
             <Route path="pdf/standard" element={<PlaceholderPage title="Standard-PDF Erstellung" category="pdf" />} />
@@ -442,8 +455,9 @@ function App() {
             <Route path="*" element={<PlaceholderPage title="❓ Seite nicht gefunden" />} />
           </Route>
         </Routes>
-      </BrowserRouter>
-    </ProjectProvider>
+        </BrowserRouter>
+      </ProjectProvider>
+    </AppProvider>
   );
 }
 

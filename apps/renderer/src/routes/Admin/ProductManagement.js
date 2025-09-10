@@ -1,176 +1,234 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { formatGermanNumber, formatGermanCurrency } from '../../utils/germanFormat';
-// Mock Data
-const mockProducts = [
-    {
-        id: '1',
-        name: 'Ja Solar JAM72S30 540/MR',
-        brand: 'Ja Solar',
-        category: 'module',
-        type: 'Mono PERC',
-        power: 540,
-        efficiency: 20.9,
-        price: 189.50,
-        availability: 'in_stock',
-        warranty: 25,
-        certifications: ['IEC 61215', 'IEC 61730', 'CE'],
-        dimensions: {
-            length: 2279,
-            width: 1134,
-            height: 30,
-            weight: 27.5
-        },
-        specifications: {
-            'Zelltyp': 'Mono PERC',
-            'Anzahl Zellen': 144,
-            'Vmp': '41,88 V',
-            'Imp': '12,90 A',
-            'Voc': '50,15 V',
-            'Isc': '13,64 A'
-        },
-        createdAt: '2024-01-15',
-        updatedAt: '2024-08-20',
-        isActive: true
-    },
-    {
-        id: '2',
-        name: 'SMA Sunny Boy 5.0',
-        brand: 'SMA',
-        category: 'inverter',
-        type: 'String-Wechselrichter',
-        power: 5000,
-        efficiency: 97.1,
-        price: 1245.00,
-        availability: 'in_stock',
-        warranty: 10,
-        certifications: ['VDE-AR-N 4105', 'CE', 'RCM'],
-        specifications: {
-            'AC Nennleistung': '5000 W',
-            'DC Eingänge': '2',
-            'Max DC Spannung': '1000 V',
-            'MPPT Bereiche': '2',
-            'Schutzart': 'IP65'
-        },
-        createdAt: '2024-02-10',
-        updatedAt: '2024-09-01',
-        isActive: true
-    },
-    {
-        id: '3',
-        name: 'BYD Battery-Box Premium HVS 7.7',
-        brand: 'BYD',
-        category: 'battery',
-        type: 'LiFePO4 Hochvolt',
-        power: 7.68, // kWh
-        efficiency: 96.0,
-        price: 3890.00,
-        availability: 'limited',
-        warranty: 10,
-        certifications: ['CE', 'UN38.3', 'IEC 62619'],
-        specifications: {
-            'Kapazität': '7,68 kWh',
-            'Spannung': '51,2 V',
-            'Zyklen': '6000+',
-            'Temperaturbereich': '-10°C bis +50°C'
-        },
-        createdAt: '2024-01-20',
-        updatedAt: '2024-08-15',
-        isActive: true
-    }
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useState, useEffect, useCallback } from 'react';
+const PRODUCT_CATEGORIES = [
+    'Modul',
+    'Wechselrichter',
+    'Batteriespeicher',
+    'Wallbox',
+    'Zubehör',
+    'Sonstiges'
 ];
-const categoryLabels = {
-    module: 'PV-Module',
-    inverter: 'Wechselrichter',
-    battery: 'Batteriespeicher',
-    wallbox: 'Wallboxen',
-    mounting: 'Montagesysteme',
-    cable: 'Kabel & Zubehör'
-};
-const availabilityLabels = {
-    in_stock: 'Auf Lager',
-    limited: 'Begrenzt',
-    out_of_stock: 'Nicht verfügbar',
-    discontinued: 'Eingestellt'
-};
-const availabilityColors = {
-    in_stock: 'bg-green-100 text-green-800',
-    limited: 'bg-yellow-100 text-yellow-800',
-    out_of_stock: 'bg-red-100 text-red-800',
-    discontinued: 'bg-gray-100 text-gray-800'
-};
 export default function ProductManagement() {
-    const [products] = useState(mockProducts);
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [sortBy, setSortBy] = useState('name');
-    const [sortOrder, setSortOrder] = useState('asc');
-    const [viewMode, setViewMode] = useState('grid');
-    const filteredAndSortedProducts = useMemo(() => {
-        let filtered = products.filter(product => {
-            const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-            const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                product.type.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesCategory && matchesSearch && product.isActive;
-        });
-        return filtered.sort((a, b) => {
-            let aValue = a[sortBy];
-            let bValue = b[sortBy];
-            if (sortBy === 'name' || sortBy === 'brand') {
-                aValue = aValue.toLowerCase();
-                bValue = bValue.toLowerCase();
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [uploadFile, setUploadFile] = useState(null);
+    const [filterCategory, setFilterCategory] = useState('Alle Kategorien');
+    const [searchText, setSearchText] = useState('');
+    // Form state
+    const [formData, setFormData] = useState({
+        category: 'Modul',
+        model_name: '',
+        brand: '',
+        price_euro: 0,
+        capacity_w: null,
+        storage_power_kw: null,
+        power_kw: null,
+        max_cycles: null,
+        warranty_years: 0,
+        length_m: null,
+        width_m: null,
+        weight_kg: null,
+        efficiency_percent: null,
+        origin_country: '',
+        description: '',
+        pros: '',
+        cons: '',
+        rating: null,
+        image_base64: '',
+        datasheet_link_db_path: '',
+        additional_cost_netto: 0,
+        company_id: null,
+        cell_technology: '',
+        module_structure: '',
+        cell_type: '',
+        version: '',
+        module_warranty_text: '',
+        labor_hours: null
+    });
+    const loadProducts = useCallback(async (category) => {
+        setLoading(true);
+        try {
+            const result = await window.api?.product?.listProducts(category || null);
+            setProducts(result || []);
+        }
+        catch (error) {
+            console.error('Failed to load products:', error);
+        }
+        finally {
+            setLoading(false);
+        }
+    }, []);
+    useEffect(() => {
+        loadProducts();
+    }, [loadProducts]);
+    const handleFormChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+    const handleImageUpload = async (file) => {
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Datei zu groß! Maximum 2MB');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result;
+            // Remove data:image/...;base64, prefix
+            const base64Data = base64.split(',')[1];
+            handleFormChange('image_base64', base64Data);
+        };
+        reader.readAsDataURL(file);
+    };
+    const handleFileUpload = async (file, dryRun = false) => {
+        if (!file)
+            return;
+        setLoading(true);
+        try {
+            const fileBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(fileBuffer);
+            // Use Python bridge for actual import (like the original Python version)
+            const result = await window.api?.importProductsFromFile?.({
+                filename: file.name,
+                data: Array.from(uint8Array),
+                file_extension: file.name.split('.').pop()?.toLowerCase(),
+                dry_run: dryRun // Pass dry run parameter
+            });
+            if (result?.success) {
+                const message = dryRun
+                    ? `Probelauf abgeschlossen: ${(result.created || 0) + (result.updated || 0)} Produkte würden verarbeitet (${result.created || 0} neu, ${result.updated || 0} aktualisiert, ${result.skipped || 0} übersprungen)`
+                    : `Import erfolgreich! ${result.created || 0} neue Produkte erstellt, ${result.updated || 0} aktualisiert, ${result.skipped || 0} übersprungen`;
+                alert(message);
+                if (!dryRun) {
+                    // Only reload products after real import, not dry run
+                    await loadProducts();
+                    setUploadFile(null);
+                }
             }
-            if (aValue < bValue)
-                return sortOrder === 'asc' ? -1 : 1;
-            if (aValue > bValue)
-                return sortOrder === 'asc' ? 1 : -1;
-            return 0;
+            else {
+                alert(`${dryRun ? 'Probelauf' : 'Import'} Fehler: ${result?.error || 'Unbekannter Fehler'}`);
+            }
+        }
+        catch (error) {
+            console.error('File upload failed:', error);
+            alert(`${dryRun ? 'Probelauf' : 'Import'} fehlgeschlagen: ${error}`);
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.model_name?.trim() || !formData.category) {
+            alert('Modellname und Kategorie sind Pflichtfelder!');
+            return;
+        }
+        setLoading(true);
+        try {
+            if (editingProduct?.id) {
+                // Update existing product
+                const success = await window.api?.product?.updateProduct(editingProduct.id, formData);
+                if (success) {
+                    alert('Produkt erfolgreich aktualisiert!');
+                }
+                else {
+                    alert('Fehler beim Aktualisieren des Produkts');
+                }
+            }
+            else {
+                // Add new product
+                const id = await window.api?.product?.addProduct(formData);
+                if (id) {
+                    alert('Produkt erfolgreich hinzugefügt!');
+                }
+                else {
+                    alert('Fehler beim Hinzufügen des Produkts');
+                }
+            }
+            // Reset form and reload
+            resetForm();
+            await loadProducts();
+        }
+        catch (error) {
+            console.error('Submit failed:', error);
+            alert('Fehler beim Speichern des Produkts');
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    const handleEdit = (product) => {
+        setEditingProduct(product);
+        setFormData({ ...product });
+        setIsFormOpen(true);
+    };
+    const handleDelete = async (id) => {
+        if (!confirm('Produkt wirklich löschen?'))
+            return;
+        setLoading(true);
+        try {
+            const success = await window.api?.product?.deleteProduct(id);
+            if (success) {
+                alert('Produkt erfolgreich gelöscht!');
+                await loadProducts();
+            }
+            else {
+                alert('Fehler beim Löschen des Produkts');
+            }
+        }
+        catch (error) {
+            console.error('Delete failed:', error);
+            alert('Fehler beim Löschen des Produkts');
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    const resetForm = () => {
+        setFormData({
+            category: 'Modul',
+            model_name: '',
+            brand: '',
+            price_euro: 0,
+            capacity_w: null,
+            storage_power_kw: null,
+            power_kw: null,
+            max_cycles: null,
+            warranty_years: 0,
+            length_m: null,
+            width_m: null,
+            weight_kg: null,
+            efficiency_percent: null,
+            origin_country: '',
+            description: '',
+            pros: '',
+            cons: '',
+            rating: null,
+            image_base64: '',
+            datasheet_link_db_path: '',
+            additional_cost_netto: 0,
+            company_id: null,
+            cell_technology: '',
+            module_structure: '',
+            cell_type: '',
+            version: '',
+            module_warranty_text: '',
+            labor_hours: null
         });
-    }, [products, selectedCategory, searchTerm, sortBy, sortOrder]);
-    const handleSort = (field) => {
-        if (sortBy === field) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        }
-        else {
-            setSortBy(field);
-            setSortOrder('asc');
-        }
+        setEditingProduct(null);
+        setIsFormOpen(false);
     };
-    return (_jsxs("div", { className: "min-h-screen bg-slate-50", children: [_jsx("div", { className: "bg-white shadow-sm border-b", children: _jsx("div", { className: "max-w-7xl mx-auto px-6 py-4", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsxs("div", { className: "flex items-center gap-2 mb-1", children: [_jsx(Link, { to: "/admin", className: "text-slate-500 hover:text-slate-700", children: "Admin" }), _jsx("span", { className: "text-slate-400", children: "/" }), _jsx("span", { className: "text-slate-900 font-medium", children: "Produktverwaltung" })] }), _jsx("h1", { className: "text-2xl font-bold text-slate-900", children: "\uD83D\uDCE6 Produktverwaltung" }), _jsx("p", { className: "text-slate-600", children: "Verwalten Sie Ihre Produktkataloge und Preise" })] }), _jsxs("div", { className: "flex gap-3", children: [_jsx("button", { className: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors", children: "+ Produkt hinzuf\u00FCgen" }), _jsx("button", { className: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors", children: "Import/Export" })] })] }) }) }), _jsxs("div", { className: "max-w-7xl mx-auto px-6 py-6", children: [_jsx("div", { className: "bg-white rounded-lg border p-4 mb-6", children: _jsxs("div", { className: "flex flex-col lg:flex-row gap-4", children: [_jsx("div", { className: "flex-1", children: _jsxs("div", { className: "relative", children: [_jsx("input", { type: "text", placeholder: "Produkt suchen...", value: searchTerm, onChange: (e) => setSearchTerm(e.target.value), className: "w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" }), _jsx("div", { className: "absolute left-3 top-2.5 text-slate-400", children: "\uD83D\uDD0D" })] }) }), _jsxs("div", { className: "flex gap-2 flex-wrap", children: [_jsxs("button", { onClick: () => setSelectedCategory('all'), className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`, children: ["Alle (", products.length, ")"] }), Object.entries(categoryLabels).map(([key, label]) => {
-                                            const count = products.filter(p => p.category === key && p.isActive).length;
-                                            return (_jsxs("button", { onClick: () => setSelectedCategory(key), className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === key
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`, children: [label, " (", count, ")"] }, key));
-                                        })] }), _jsxs("div", { className: "flex gap-2", children: [_jsxs("select", { value: `${sortBy}-${sortOrder}`, onChange: (e) => {
-                                                const [field, order] = e.target.value.split('-');
-                                                setSortBy(field);
-                                                setSortOrder(order);
-                                            }, className: "px-3 py-2 border border-slate-300 rounded-lg text-sm", children: [_jsx("option", { value: "name-asc", children: "Name A-Z" }), _jsx("option", { value: "name-desc", children: "Name Z-A" }), _jsx("option", { value: "brand-asc", children: "Marke A-Z" }), _jsx("option", { value: "price-asc", children: "Preis niedrig-hoch" }), _jsx("option", { value: "price-desc", children: "Preis hoch-niedrig" }), _jsx("option", { value: "power-desc", children: "Leistung hoch-niedrig" })] }), _jsxs("div", { className: "flex bg-slate-100 rounded-lg p-1", children: [_jsx("button", { onClick: () => setViewMode('grid'), className: `px-3 py-1 rounded text-sm transition-colors ${viewMode === 'grid'
-                                                        ? 'bg-white text-slate-900 shadow-sm'
-                                                        : 'text-slate-600 hover:text-slate-900'}`, children: "\uD83D\uDCCB" }), _jsx("button", { onClick: () => setViewMode('table'), className: `px-3 py-1 rounded text-sm transition-colors ${viewMode === 'table'
-                                                        ? 'bg-white text-slate-900 shadow-sm'
-                                                        : 'text-slate-600 hover:text-slate-900'}`, children: "\uD83D\uDCCA" })] })] })] }) }), viewMode === 'grid' ? (_jsx("div", { className: "grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6", children: filteredAndSortedProducts.map(product => (_jsx(ProductCard, { product: product }, product.id))) })) : (_jsx(ProductTable, { products: filteredAndSortedProducts })), filteredAndSortedProducts.length === 0 && (_jsxs("div", { className: "text-center py-12", children: [_jsx("div", { className: "text-6xl mb-4", children: "\uD83D\uDCE6" }), _jsx("h3", { className: "text-lg font-medium text-slate-900 mb-2", children: "Keine Produkte gefunden" }), _jsx("p", { className: "text-slate-600", children: searchTerm ? `Keine Produkte für "${searchTerm}"` : 'Keine Produkte in dieser Kategorie' })] }))] })] }));
-}
-// Product Card Component
-function ProductCard({ product }) {
-    const getPowerDisplay = () => {
-        if (product.category === 'module')
-            return `${product.power} Wp`;
-        if (product.category === 'inverter')
-            return `${formatGermanNumber(product.power / 1000, 1)} kW`;
-        if (product.category === 'battery')
-            return `${formatGermanNumber(product.power, 1)} kWh`;
-        return '';
-    };
-    return (_jsxs("div", { className: "bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow", children: [_jsxs("div", { className: "p-4", children: [_jsxs("div", { className: "flex justify-between items-start mb-3", children: [_jsxs("div", { className: "text-2xl", children: [product.category === 'module' && '⚡', product.category === 'inverter' && '🔄', product.category === 'battery' && '🔋', product.category === 'wallbox' && '🚗', product.category === 'mounting' && '🔧', product.category === 'cable' && '🔌'] }), _jsx("span", { className: `px-2 py-1 text-xs font-medium rounded-full ${availabilityColors[product.availability]}`, children: availabilityLabels[product.availability] })] }), _jsxs("div", { className: "mb-3", children: [_jsx("h3", { className: "font-semibold text-slate-900 text-sm mb-1 leading-tight", children: product.name }), _jsxs("p", { className: "text-slate-600 text-xs", children: [product.brand, " \u2022 ", product.type] })] }), _jsxs("div", { className: "space-y-1 mb-3", children: [product.power && (_jsxs("div", { className: "flex justify-between text-sm", children: [_jsx("span", { className: "text-slate-600", children: "Leistung:" }), _jsx("span", { className: "font-medium", children: getPowerDisplay() })] })), product.efficiency && (_jsxs("div", { className: "flex justify-between text-sm", children: [_jsx("span", { className: "text-slate-600", children: "Effizienz:" }), _jsxs("span", { className: "font-medium", children: [formatGermanNumber(product.efficiency, 1), "%"] })] })), _jsxs("div", { className: "flex justify-between text-sm", children: [_jsx("span", { className: "text-slate-600", children: "Garantie:" }), _jsxs("span", { className: "font-medium", children: [product.warranty, " Jahre"] })] })] }), _jsxs("div", { className: "flex justify-between items-center pt-3 border-t", children: [_jsx("div", { className: "text-lg font-bold text-green-600", children: formatGermanCurrency(product.price) }), _jsx("div", { className: "text-xs text-slate-500", children: "netto" })] })] }), _jsxs("div", { className: "px-4 py-3 bg-slate-50 border-t flex gap-2", children: [_jsx("button", { className: "flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors", children: "Bearbeiten" }), _jsx("button", { className: "px-3 py-2 border border-slate-300 text-slate-700 text-sm rounded hover:bg-slate-100 transition-colors", children: "Details" })] })] }));
-}
-// Product Table Component  
-function ProductTable({ products }) {
-    return (_jsx("div", { className: "bg-white rounded-lg border overflow-hidden", children: _jsx("div", { className: "overflow-x-auto", children: _jsxs("table", { className: "w-full", children: [_jsx("thead", { className: "bg-slate-50 border-b", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left py-3 px-4 font-medium text-slate-900", children: "Produkt" }), _jsx("th", { className: "text-left py-3 px-4 font-medium text-slate-900", children: "Kategorie" }), _jsx("th", { className: "text-right py-3 px-4 font-medium text-slate-900", children: "Leistung" }), _jsx("th", { className: "text-right py-3 px-4 font-medium text-slate-900", children: "Effizienz" }), _jsx("th", { className: "text-right py-3 px-4 font-medium text-slate-900", children: "Preis" }), _jsx("th", { className: "text-center py-3 px-4 font-medium text-slate-900", children: "Status" }), _jsx("th", { className: "text-center py-3 px-4 font-medium text-slate-900", children: "Aktionen" })] }) }), _jsx("tbody", { className: "divide-y divide-slate-200", children: products.map(product => (_jsxs("tr", { className: "hover:bg-slate-50", children: [_jsx("td", { className: "py-3 px-4", children: _jsxs("div", { children: [_jsx("div", { className: "font-medium text-slate-900", children: product.name }), _jsxs("div", { className: "text-sm text-slate-600", children: [product.brand, " \u2022 ", product.type] })] }) }), _jsx("td", { className: "py-3 px-4", children: _jsx("span", { className: "px-2 py-1 bg-slate-100 text-slate-800 rounded text-sm", children: categoryLabels[product.category] }) }), _jsx("td", { className: "py-3 px-4 text-right", children: product.power && (product.category === 'module' ? `${product.power} Wp` :
-                                        product.category === 'inverter' ? `${formatGermanNumber(product.power / 1000, 1)} kW` :
-                                            product.category === 'battery' ? `${formatGermanNumber(product.power, 1)} kWh` : '') }), _jsx("td", { className: "py-3 px-4 text-right", children: product.efficiency ? `${formatGermanNumber(product.efficiency, 1)}%` : '-' }), _jsx("td", { className: "py-3 px-4 text-right font-medium", children: formatGermanCurrency(product.price) }), _jsx("td", { className: "py-3 px-4 text-center", children: _jsx("span", { className: `px-2 py-1 text-xs font-medium rounded-full ${availabilityColors[product.availability]}`, children: availabilityLabels[product.availability] }) }), _jsx("td", { className: "py-3 px-4 text-center", children: _jsxs("div", { className: "flex justify-center gap-1", children: [_jsx("button", { className: "p-1 text-blue-600 hover:bg-blue-50 rounded", children: "\u270F\uFE0F" }), _jsx("button", { className: "p-1 text-slate-600 hover:bg-slate-50 rounded", children: "\uD83D\uDC41\uFE0F" }), _jsx("button", { className: "p-1 text-red-600 hover:bg-red-50 rounded", children: "\uD83D\uDDD1\uFE0F" })] }) })] }, product.id))) })] }) }) }));
+    // Filter products
+    const filteredProducts = products.filter(product => {
+        const matchesCategory = filterCategory === 'Alle Kategorien' || product.category === filterCategory;
+        const matchesSearch = !searchText.trim() ||
+            product.model_name?.toLowerCase().includes(searchText.toLowerCase()) ||
+            product.brand?.toLowerCase().includes(searchText.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+    return (_jsx("div", { className: "max-w-7xl mx-auto p-6", children: _jsxs("div", { className: "bg-white rounded-lg shadow-sm border p-6", children: [_jsx("h2", { className: "text-2xl font-bold text-gray-900 mb-6", children: "Produktverwaltung" }), _jsxs("div", { className: "mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200", children: [_jsx("h3", { className: "text-lg font-semibold text-blue-900 mb-3", children: "Produktdatenbank hochladen (Excel/CSV)" }), _jsx("p", { className: "text-blue-700 mb-4", children: "Laden Sie eine Excel (.xlsx) oder CSV (.csv) Datei mit Produktdaten hoch. Pflichtfelder: model_name, category" }), _jsxs("div", { className: "flex gap-3 items-center", children: [_jsx("input", { type: "file", accept: ".xlsx,.csv", onChange: (e) => setUploadFile(e.target.files?.[0] || null), className: "block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" }), _jsx("button", { onClick: () => uploadFile && handleFileUpload(uploadFile, true), disabled: !uploadFile || loading, className: "px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap", children: loading ? 'Prüfe...' : 'Probelauf' }), _jsx("button", { onClick: () => uploadFile && handleFileUpload(uploadFile, false), disabled: !uploadFile || loading, className: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap", children: loading ? 'Importiere...' : 'Import starten' })] })] }), _jsx("div", { className: "mb-6", children: _jsx("button", { onClick: () => setIsFormOpen(!isFormOpen), className: "px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700", children: isFormOpen ? 'Formular schließen' : 'Neues Produkt manuell anlegen' }) }), isFormOpen && (_jsx("div", { className: "mb-6 p-6 bg-gray-50 rounded-lg border", children: _jsxs("form", { onSubmit: handleSubmit, children: [_jsx("h3", { className: "text-xl font-semibold mb-4", children: editingProduct ? `Produkt bearbeiten: ${editingProduct.model_name}` : 'Neues Produkt anlegen' }), _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Modellname *" }), _jsx("input", { type: "text", value: formData.model_name || '', onChange: (e) => handleFormChange('model_name', e.target.value), required: true, className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Kategorie *" }), _jsx("select", { value: formData.category, onChange: (e) => handleFormChange('category', e.target.value), required: true, className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500", children: PRODUCT_CATEGORIES.map(cat => (_jsx("option", { value: cat, children: cat }, cat))) })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Hersteller" }), _jsx("input", { type: "text", value: formData.brand || '', onChange: (e) => handleFormChange('brand', e.target.value), className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Preis (\u20AC)" }), _jsx("input", { type: "number", step: "0.01", value: formData.price_euro || 0, onChange: (e) => handleFormChange('price_euro', parseFloat(e.target.value) || 0), className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Garantie (Jahre)" }), _jsx("input", { type: "number", value: formData.warranty_years || 0, onChange: (e) => handleFormChange('warranty_years', parseInt(e.target.value) || 0), className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Zusatzkosten Netto (\u20AC)" }), _jsx("input", { type: "number", step: "0.01", value: formData.additional_cost_netto || 0, onChange: (e) => handleFormChange('additional_cost_netto', parseFloat(e.target.value) || 0), className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] }), formData.category === 'Modul' && (_jsxs(_Fragment, { children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Kapazit\u00E4t (W)" }), _jsx("input", { type: "number", value: formData.capacity_w || '', onChange: (e) => handleFormChange('capacity_w', parseFloat(e.target.value) || null), className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Effizienz (%)" }), _jsx("input", { type: "number", step: "0.1", value: formData.efficiency_percent || '', onChange: (e) => handleFormChange('efficiency_percent', parseFloat(e.target.value) || null), className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" })] })] }))] }), _jsxs("div", { className: "mb-4", children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Produktbild (PNG, JPG, max. 2MB)" }), _jsx("input", { type: "file", accept: ".png,.jpg,.jpeg", onChange: (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file)
+                                                handleImageUpload(file);
+                                        }, className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" }), formData.image_base64 && (_jsx("div", { className: "mt-2", children: _jsx("img", { src: `data:image/jpeg;base64,${formData.image_base64}`, alt: "Product preview", className: "w-32 h-32 object-contain border rounded" }) }))] }), _jsxs("div", { className: "flex gap-3", children: [_jsx("button", { type: "submit", disabled: loading, className: "px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50", children: loading ? 'Speichere...' : (editingProduct ? 'Aktualisieren' : 'Hinzufügen') }), _jsx("button", { type: "button", onClick: resetForm, className: "px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700", children: "Abbrechen" })] })] }) })), _jsxs("div", { className: "mb-6 flex flex-wrap gap-4 items-center", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Kategorie:" }), _jsxs("select", { value: filterCategory, onChange: (e) => setFilterCategory(e.target.value), className: "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500", children: [_jsx("option", { value: "Alle Kategorien", children: "Alle Kategorien" }), PRODUCT_CATEGORIES.map(cat => (_jsx("option", { value: cat, children: cat }, cat)))] })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Suche:" }), _jsx("input", { type: "text", placeholder: "Modell/Hersteller suchen...", value: searchText, onChange: (e) => setSearchText(e.target.value), className: "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]" })] }), _jsx("div", { className: "flex items-end", children: _jsx("button", { onClick: () => loadProducts(), disabled: loading, className: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50", children: loading ? 'Lade...' : 'Aktualisieren' }) })] }), _jsxs("div", { children: [_jsxs("h3", { className: "text-lg font-semibold mb-3", children: ["Produkte (", filteredProducts.length, ")"] }), filteredProducts.length === 0 ? (_jsx("p", { className: "text-gray-500", children: "Keine Produkte gefunden." })) : (_jsx("div", { className: "overflow-x-auto", children: _jsxs("table", { className: "min-w-full border border-gray-300", children: [_jsx("thead", { className: "bg-gray-50", children: _jsxs("tr", { children: [_jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "ID" }), _jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "Kategorie" }), _jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "Modell" }), _jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "Hersteller" }), _jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "Preis (\u20AC)" }), _jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "Garantie" }), _jsx("th", { className: "border border-gray-300 px-4 py-2 text-left", children: "Aktionen" })] }) }), _jsx("tbody", { children: filteredProducts.map((product) => (_jsxs("tr", { className: "hover:bg-gray-50", children: [_jsx("td", { className: "border border-gray-300 px-4 py-2", children: product.id }), _jsx("td", { className: "border border-gray-300 px-4 py-2", children: product.category }), _jsx("td", { className: "border border-gray-300 px-4 py-2", children: _jsxs("div", { className: "flex items-center gap-2", children: [product.image_base64 && (_jsx("img", { src: `data:image/jpeg;base64,${product.image_base64}`, alt: product.model_name, className: "w-8 h-8 object-contain" })), product.model_name] }) }), _jsx("td", { className: "border border-gray-300 px-4 py-2", children: product.brand }), _jsxs("td", { className: "border border-gray-300 px-4 py-2", children: [(product.price_euro || 0).toFixed(2), "\u20AC"] }), _jsxs("td", { className: "border border-gray-300 px-4 py-2", children: [product.warranty_years || 0, " Jahre"] }), _jsx("td", { className: "border border-gray-300 px-4 py-2", children: _jsxs("div", { className: "flex gap-2", children: [_jsx("button", { onClick: () => handleEdit(product), className: "px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600", children: "Bearbeiten" }), _jsx("button", { onClick: () => handleDelete(product.id), className: "px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600", children: "L\u00F6schen" })] }) })] }, product.id))) })] }) }))] })] }) }));
 }

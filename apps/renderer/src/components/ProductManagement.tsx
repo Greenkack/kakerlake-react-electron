@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import './ProductManagement.css';
 /**
  * Local type definitions to avoid importing types from the external core package
  * (the external module path '../../../../core/src/types/db' is not available in this project/tsconfig).
@@ -295,64 +296,72 @@ const ProductManagement: React.FC = () => {
   return (
     <div className="product-management">
       <h2>Produktverwaltung</h2>
-
       {/* Bulk Upload Section */}
-      <div className="upload-section" style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+      <div className="upload-section">
         <h3>Produktdatenbank hochladen (Excel/CSV)</h3>
         <p>Laden Sie eine Excel (.xlsx) oder CSV (.csv) Datei mit Produktdaten hoch. Pflichtfelder: model_name, category</p>
         
+        <label htmlFor="file-upload" className="sr-only">Produktdatei auswählen</label>
         <input
+          id="file-upload"
           type="file"
           accept=".xlsx,.csv"
           onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-          style={{ marginRight: '10px' }}
+          className="file-input"
+          title="Excel- oder CSV-Datei mit Produktdaten auswählen"
         />
         
         <button 
           onClick={() => uploadFile && handleFileUpload(uploadFile)}
           disabled={!uploadFile || loading}
-          style={{ padding: '10px 15px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}
+          className="btn btn-primary"
         >
           {loading ? 'Verarbeite...' : 'Datei verarbeiten'}
-        </button>
-      </div>
-
       {/* Manual Product Form */}
-      <div style={{ marginBottom: '20px' }}>
+      <div className="form-toggle">
         <button 
           onClick={() => setIsFormOpen(!isFormOpen)}
-          style={{ padding: '10px 15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}
+          className="btn btn-success"
         >
           {isFormOpen ? 'Formular schließen' : 'Neues Produkt manuell anlegen'}
         </button>
       </div>
-
-      {isFormOpen && (
-        <form onSubmit={handleSubmit} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+        >
+          {isFormOpen ? 'Formular schließen' : 'Neues Produkt manuell anlegen'}
+        <form onSubmit={handleSubmit} className="product-form">
           <h3>{editingProduct ? `Produkt bearbeiten: ${editingProduct.model_name}` : 'Neues Produkt anlegen'}</h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-            {/* Required fields */}
+          <div className="form-grid">
+        <form onSubmit={handleSubmit} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
             <div>
-              <label>Modellname *</label>
+              <label htmlFor="model-name">Modellname *</label>
               <input
+                id="model-name"
                 type="text"
                 value={formData.model_name}
                 onChange={(e) => handleFormChange('model_name', e.target.value)}
                 required
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                className="form-input"
+                placeholder="Produktmodell eingeben"
+                title="Name des Produktmodells"
               />
             </div>
 
             <div>
-              <label>Kategorie *</label>
+              <label htmlFor="category">Kategorie *</label>
               <select
+                id="category"
                 value={formData.category}
                 onChange={(e) => handleFormChange('category', e.target.value)}
                 required
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                className="form-select"
+                title="Produktkategorie auswählen"
               >
                 {PRODUCT_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

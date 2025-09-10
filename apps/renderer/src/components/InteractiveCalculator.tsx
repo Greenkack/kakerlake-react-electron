@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { 
   formatGermanNumber, 
   formatGermanCurrency, 
@@ -25,6 +25,18 @@ export default function InteractiveCalculator({
   const [electricityPrice, setElectricityPrice] = useState(0.35)
   const [includeWallbox, setIncludeWallbox] = useState(false)
   const [includePump, setIncludePump] = useState(false)
+  const autarkyBarRef = useRef<HTMLDivElement>(null)
+  const selfConsumptionBarRef = useRef<HTMLDivElement>(null)
+
+  // Update progress bars with CSS custom properties
+  useEffect(() => {
+    if (autarkyBarRef.current) {
+      autarkyBarRef.current.style.setProperty('--progress-width', `${calculations.autarkyRate}%`)
+    }
+    if (selfConsumptionBarRef.current) {
+      selfConsumptionBarRef.current.style.setProperty('--progress-width', `${calculations.selfConsumptionRate}%`)
+    }
+  }, [calculations.autarkyRate, calculations.selfConsumptionRate])
 
   // Berechnungen basierend auf aktuellen Einstellungen
   const calculations = useMemo(() => {
@@ -95,11 +107,14 @@ export default function InteractiveCalculator({
               title={`PV-Anlagengröße: ${systemSize} kWp`}
               aria-label="PV-Anlagengröße"
               placeholder="PV-Anlagengröße"
-              className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider"
+              className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer pv-slider"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>3 kWp</span>
               <span>{maxSystemSize} kWp {roofArea && "(max für Ihr Dach)"}</span>
+            </div>
+          </div>
+
           {/* Batteriegröße */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -115,11 +130,14 @@ export default function InteractiveCalculator({
               title={`Batteriegröße: ${batterySize} kWh`}
               aria-label="Batteriegröße"
               placeholder="Batteriegröße"
-              className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer battery-slider"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>0 kWh</span>
               <span>25 kWh</span>
+            </div>
+          </div>
+
           {/* Strompreis */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -135,13 +153,7 @@ export default function InteractiveCalculator({
               title={`Strompreis: ${electricityPrice.toFixed(2)} €/kWh`}
               aria-label="Strompreis"
               placeholder="Strompreis"
-              className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-slate-500 mt-1">
-              <span>25 ct</span>
-              <span>50 ct</span>
-            </div>
-          </div>
+              className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer price-slider"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>25 ct</span>
@@ -188,12 +200,12 @@ export default function InteractiveCalculator({
             <div className="bg-green-50 p-4 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
                 {calculations.annualSavings.toLocaleString('de-DE')} €
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full transition-all duration-700"
+                  data-width={calculations.autarkyRate}
+                />
               </div>
-              <div className="text-sm text-slate-600">Einsparung/Jahr</div>
-            </div>
-          </div>
-
-          {/* Autarkie und Eigenverbrauch */}
           <div className="space-y-3">
             <div>
               <div className="flex justify-between mb-1">
@@ -201,12 +213,12 @@ export default function InteractiveCalculator({
                 <span className="text-sm font-medium">{calculations.autarkyRate.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-2">
+              <div className="w-full bg-slate-200 rounded-full h-2">
                 <div 
-                  className="bg-green-500 h-2 rounded-full transition-all duration-700"
-                  style={{ width: `${calculations.autarkyRate}%` }}
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-700"
+                  data-width={calculations.selfConsumptionRate}
                 />
               </div>
-            </div>
             
             <div>
               <div className="flex justify-between mb-1">
@@ -234,11 +246,16 @@ export default function InteractiveCalculator({
                 <div className="font-bold">{calculations.paybackTime.toFixed(1)} Jahre</div>
               </div>
             </div>
-          </div>
+      </div>
 
-          {/* Umwelt */}
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-center">
+      <style jsx>{`
+        .progress-bar {
+          width: var(--progress-width, 0%);
+        }
+      `}</style>
+    </div>
+  )
+}
               <div className="text-lg font-bold text-green-600">
                 {calculations.co2Savings.toLocaleString('de-DE')} kg CO₂
               </div>
@@ -248,28 +265,6 @@ export default function InteractiveCalculator({
         </div>
       </div>
 
-      {/* Inline Styles für Slider */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          .slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #3B82F6;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          }
-          .slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #3B82F6;
-            cursor: pointer;
-            border: none;
-          }
-        `
-      }} />
     </div>
   )
 }

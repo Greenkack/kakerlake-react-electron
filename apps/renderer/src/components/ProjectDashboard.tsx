@@ -159,7 +159,7 @@ export default function ProjectDashboard(): JSX.Element {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Schnellübersicht */}
       {(summary.hasConsumption || summary.hasBuilding) && (
@@ -312,5 +312,5 @@ export default function ProjectDashboard(): JSX.Element {
         </div>
       )}
     </div>
-  )
-}
+  );
+};

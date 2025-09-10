@@ -64,34 +64,51 @@
 
 /* Workflow Navigation Styles */
 .workflow-nav-item.active {
-  @apply bg-blue-100 border-blue-300 text-blue-800;
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
 }
 
 .workflow-nav-item.completed {
-  @apply bg-green-100 border-green-300 text-green-800;
+  background-color: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
 }
 
 .workflow-nav-item.error {
-  @apply bg-red-100 border-red-300 text-red-800;
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
 }
 
 /* Step indicators */
 .workflow-step-indicator {
-  @apply w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .workflow-step-indicator.pending {
-  @apply bg-gray-200 text-gray-600;
+  background-color: #e5e7eb;
+  color: #4b5563;
 }
 
 .workflow-step-indicator.active {
-  @apply bg-blue-500 text-white;
+  background-color: #3b82f6;
+  color: #ffffff;
 }
 
 .workflow-step-indicator.completed {
-  @apply bg-green-500 text-white;
+  background-color: #10b981;
+  color: #ffffff;
 }
 
 .workflow-step-indicator.error {
-  @apply bg-red-500 text-white;
+  background-color: #ef4444;
+  color: #ffffff;
 }

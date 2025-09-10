@@ -105,9 +105,10 @@ export class PythonPdfService {
                 error: undefined
               });
             } catch (parseError) {
+              const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
               resolve({
                 success: false,
-                error: `Failed to parse Python response: ${parseError.message}\nStdout: ${stdout}\nStderr: ${stderr}`
+                error: `Failed to parse Python response: ${parseMessage}\nStdout: ${stdout}\nStderr: ${stderr}`
               });
             }
           } else {
@@ -136,9 +137,10 @@ export class PythonPdfService {
       });
 
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        error: `PDF generation error: ${error.message}`
+        error: `PDF generation error: ${message}`
       };
     }
   }

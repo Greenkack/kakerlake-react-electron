@@ -1,19 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  Steps, Card, Panel, Button, InputText, InputNumber, Dropdown, 
-  Checkbox, DataTable, Column, Tag, Message, Tooltip, Divider,
-  ProgressBar, Fieldset, InputTextarea, RadioButton, Slider,
-  SelectButton, MultiSelect, AutoComplete, Calendar, FileUpload,
-  TabView, TabPanel, Accordion, AccordionTab, Splitter, SplitterPanel,
-  Toast, Dialog, ConfirmDialog, Sidebar, ScrollPanel, Chip,
-  Avatar, Badge, BlockUI, Skeleton, ProgressSpinner, InlineMessage,
-  Galleria, Image, Carousel, Timeline, Tree, Menu, Menubar,
-  ContextMenu, MegaMenu, PanelMenu, TieredMenu, BreadCrumb,
-  Paginator, DataView, VirtualScroller, PickList, OrderList,
-  OrganizationChart, TreeTable, ToggleButton, SplitButton,
-  SpeedDial, Knob, Rating, ColorPicker, CascadeSelect,
-  TriStateCheckbox, ListBox, InputMask, InputSwitch, Editor
-} from 'primereact/all';
+import { Steps } from 'primereact/steps';
+import { Card } from 'primereact/card';
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { InputNumber } from 'primereact/inputnumber';
+import { Dropdown } from 'primereact/dropdown';
+import { Toast } from 'primereact/toast';
+import { Divider } from 'primereact/divider';
+import { Chip } from 'primereact/chip';
 import 'primereact/resources/themes/saga-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
@@ -37,462 +31,563 @@ interface Product {
   efficiency_percent?: number;
   origin_country?: string;
   description?: string;
-  pros?: string;
-  cons?: string;
-  rating?: number;
-  image_base64?: string;
-  additional_cost_netto?: number;
 }
 
-interface CalculationResults {
+interface SystemConfiguration {
   anlage_kwp: number;
-  total_inverter_power_kw: number;
-  base_matrix_price_netto: number;
-  total_investment_netto: number;
-  total_investment_brutto: number;
-  annual_pv_production_kwh: number;
-  einspeiseverguetung_total_euro: number;
-  final_price?: number;
+  pv_power_kw: number;
+  pv_modules: Product[];
+  inverter: Product;
+  battery?: Product;
+  wallbox?: Product;
 }
 
-interface ProjectDetails {
+interface ProjectCalculation {
   module_quantity: number;
-  selected_module_brand?: string;
-  selected_module_name?: string;
-  selected_module_id?: number;
-  selected_module_capacity_w: number;
-  anlage_kwp: number;
-  selected_inverter_brand?: string;
-  selected_inverter_name?: string;
-  selected_inverter_id?: number;
-  selected_inverter_quantity: number;
-  selected_inverter_power_kw_single: number;
-  selected_inverter_power_kw: number;
-  selected_inverter_power_w_total: number;
-  selected_inverter_power_w_single: number;
-  include_storage: boolean;
-  selected_storage_brand?: string;
-  selected_storage_name?: string;
-  selected_storage_id?: number;
-  selected_storage_storage_power_kw: number;
+  total_cost: number;
+  annual_yield_kwh: number;
+  roi_years: number;
+  co2_savings_kg: number;
+  battery_included: boolean;
+  wallbox_included: boolean;
+  optimal_tilt: number;
+  optimal_azimuth: number;
+  shading_factor: number;
+  energy_independence_percent: number;
+  annual_savings_euro: number;
+  payback_period: number;
+  lcoe_euro_kwh: number;
+  investment_profitability: number;
+  environmental_impact_score: number;
+  // Added the missing field
+  system_power_kwp: number;
 }
 
 interface ProjectFormProps {
   project?: Partial<Project>;
-  customer: Customer;
-  mode: 'add' | 'edit';
+  customer?: Customer;
   onSave: (project: Omit<Project, 'id'>) => void;
   onCancel: () => void;
-  texts?: Record<string, string>;
+  onCalculate?: (data: any) => ProjectCalculation;
 }
 
-export const ModernSolarCalculator: React.FC<ProjectFormProps> = ({
-  project,
-  customer,
-  mode,
-  onSave,
-  onCancel,
-  texts = {}
-}) => {
-  // Multi-step wizard state
-  const [activeStep, setActiveStep] = useState<number>(0);
+const getLabel = (key: string, fallback: string): string => {
+  // Simplified localization - in real app this would use i18n
+  const labels: Record<string, string> = {
+    'crm_project_basic_info': 'Grunddaten',
+    'crm_project_roof_details': 'Dachdaten',
+    'crm_project_consumption': 'Verbrauchsdaten',
+    'crm_project_system_config': 'Anlagenkonfiguration',
+    'crm_project_location': 'Standortdaten',
+    'crm_project_name': 'Projektname',
+    'crm_project_status': 'Status',
+    'crm_project_priority': 'Priorität',
+    'crm_project_roof_type': 'Dachtyp',
+    'crm_project_roof_covering': 'Dachbedeckung',
+    'crm_project_roof_area': 'Dachfläche (m²)',
+    'crm_project_roof_orientation': 'Ausrichtung',
+    'crm_project_roof_inclination': 'Neigungswinkel',
+    'crm_project_annual_consumption': 'Jahresverbrauch (kWh)',
+    'crm_project_energy_costs': 'Stromkosten (€/Jahr)',
+    'crm_project_plant_type': 'Anlagentyp',
+    'crm_project_feed_in_type': 'Einspeiseart',
+    'crm_project_module_quantity': 'Modulanzahl',
+    'crm_project_street': 'Straße',
+    'crm_project_city': 'Stadt',
+    'crm_project_zip': 'PLZ',
+    'crm_project_country': 'Land'
+  };
+  return labels[key] || fallback;
+};
+
+export default function ProjectForm({ 
+  project, 
+  customer, 
+  onSave, 
+  onCancel, 
+  onCalculate 
+}: ProjectFormProps) {
+  // Form state
+  const [formData, setFormData] = useState<Partial<Project>>({
+    project_name: '',
+    customer_id: customer?.id,
+    project_status: 'Angebot',
+    roof_type: 'Satteldach',
+    roof_covering_type: 'Ziegel',
+    free_roof_area_sqm: 0,
+    roof_orientation: 'Süd',
+    roof_inclination_deg: 30,
+    annual_consumption_kwh: 0,
+    costs_household_euro_mo: 0,
+    anlage_type: 'Eigenverbrauch',
+    feed_in_type: 'Überschusseinspeisung',
+    ...project
+  });
+
+  // Wizard state
+  const [activeStep, setActiveStep] = useState(0);
+  const [calculation, setCalculation] = useState<ProjectCalculation | null>(null);
   const toast = useRef<Toast>(null);
-  
-  // Product data state
-  const [moduleProducts, setModuleProducts] = useState<Product[]>([]);
-  const [inverterProducts, setInverterProducts] = useState<Product[]>([]);
-  const [storageProducts, setStorageProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  
-  // Project details state (matching Python logic)
-  const [projectDetails, setProjectDetails] = useState<ProjectDetails>({
-    module_quantity: project?.module_quantity || 20,
-    selected_module_brand: undefined,
-    selected_module_name: undefined,
-    selected_module_id: project?.selected_module_id || undefined,
-    selected_module_capacity_w: 0,
-    anlage_kwp: 0,
-    selected_inverter_brand: undefined,
-    selected_inverter_name: undefined,
-    selected_inverter_id: project?.selected_inverter_id || undefined,
-    selected_inverter_quantity: 1,
-    selected_inverter_power_kw_single: 0,
-    selected_inverter_power_kw: 0,
-    selected_inverter_power_w_total: 0,
-    selected_inverter_power_w_single: 0,
-    include_storage: Boolean(project?.include_storage || false),
-    selected_storage_brand: undefined,
-    selected_storage_name: undefined,
-    selected_storage_id: project?.selected_storage_id || undefined,
-    selected_storage_storage_power_kw: project?.selected_storage_storage_power_kw || 5.0
-  });
 
-  // Calculation results
-  const [calculationResults, setCalculationResults] = useState<CalculationResults>({
-    anlage_kwp: 0,
-    total_inverter_power_kw: 0,
-    base_matrix_price_netto: 0,
-    total_investment_netto: 0,
-    total_investment_brutto: 0,
-    annual_pv_production_kwh: 0,
-    einspeiseverguetung_total_euro: 0
-  });
+  // Steps definition
+  const stepItems = [
+    { label: 'Grunddaten' },
+    { label: 'Dach & Verbrauch' },
+    { label: 'Anlagenkonfiguration' },
+    { label: 'Komponenten & Standort' }
+  ];
 
-  const [formData, setFormData] = useState<Omit<Project, 'id'>>({
-    customer_id: customer.id!,
-    project_name: project?.project_name || '',
-    project_status: project?.project_status || '',
-    roof_type: project?.roof_type || '',
-    roof_covering_type: project?.roof_covering_type || '',
-    free_roof_area_sqm: project?.free_roof_area_sqm || 0,
-    roof_orientation: project?.roof_orientation || '',
-    roof_inclination_deg: project?.roof_inclination_deg || 0,
-    building_height_gt_7m: project?.building_height_gt_7m || 0,
-    annual_consumption_kwh: project?.annual_consumption_kwh || 0,
-    costs_household_euro_mo: project?.costs_household_euro_mo || 0,
-    annual_heating_kwh: project?.annual_heating_kwh || 0,
-    costs_heating_euro_mo: project?.costs_heating_euro_mo || 0,
-    anlage_type: project?.anlage_type || '',
-    feed_in_type: project?.feed_in_type || '',
-    module_quantity: projectDetails.module_quantity,
-    selected_module_id: projectDetails.selected_module_id,
-    selected_inverter_id: projectDetails.selected_inverter_id,
-    include_storage: projectDetails.include_storage ? 1 : 0,
-    selected_storage_id: projectDetails.selected_storage_id,
-    selected_storage_storage_power_kw: projectDetails.selected_storage_storage_power_kw,
-    include_additional_components: project?.include_additional_components || 0,
-    selected_wallbox_id: project?.selected_wallbox_id || undefined,
-    selected_ems_id: project?.selected_ems_id || undefined,
-    selected_optimizer_id: project?.selected_optimizer_id || undefined,
-    selected_carport_id: project?.selected_carport_id || undefined,
-    selected_notstrom_id: project?.selected_notstrom_id || undefined,
-    selected_tierabwehr_id: project?.selected_tierabwehr_id || undefined,
-    visualize_roof_in_pdf: project?.visualize_roof_in_pdf || 0,
-    latitude: project?.latitude || undefined,
-    longitude: project?.longitude || undefined,
-    creation_date: project?.creation_date || new Date().toISOString(),
-    last_updated: new Date().toISOString()
-  });
+  // Dropdown options
+  const statusOptions = [
+    { label: 'Angebot', value: 'Angebot' },
+    { label: 'In Bearbeitung', value: 'In Bearbeitung' },
+    { label: 'Genehmigt', value: 'Genehmigt' },
+    { label: 'Abgelehnt', value: 'Abgelehnt' },
+    { label: 'Abgeschlossen', value: 'Abgeschlossen' }
+  ];
 
-  const handleInputChange = (field: keyof Omit<Project, 'id'>, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-      last_updated: new Date().toISOString()
-    }));
+  const priorityOptions = [
+    { label: 'Niedrig', value: 'Niedrig' },
+    { label: 'Normal', value: 'Normal' },
+    { label: 'Hoch', value: 'Hoch' },
+    { label: 'Kritisch', value: 'Kritisch' }
+  ];
+
+  const roofTypeOptions = [
+    { label: 'Satteldach', value: 'Satteldach' },
+    { label: 'Flachdach', value: 'Flachdach' },
+    { label: 'Pultdach', value: 'Pultdach' },
+    { label: 'Walmdach', value: 'Walmdach' }
+  ];
+
+  const roofCoveringOptions = [
+    { label: 'Ziegel', value: 'Ziegel' },
+    { label: 'Blech', value: 'Blech' },
+    { label: 'Schiefer', value: 'Schiefer' },
+    { label: 'Beton', value: 'Beton' }
+  ];
+
+  const orientationOptions = [
+    { label: 'Süd', value: 'Süd' },
+    { label: 'Südwest', value: 'Südwest' },
+    { label: 'Südost', value: 'Südost' },
+    { label: 'West', value: 'West' },
+    { label: 'Ost', value: 'Ost' }
+  ];
+
+  const plantTypeOptions = [
+    { label: 'Eigenverbrauch', value: 'Eigenverbrauch' },
+    { label: 'Volleinspeisung', value: 'Volleinspeisung' },
+    { label: 'Hybrid', value: 'Hybrid' }
+  ];
+
+  const feedInTypeOptions = [
+    { label: 'Überschusseinspeisung', value: 'Überschusseinspeisung' },
+    { label: 'Volleinspeisung', value: 'Volleinspeisung' },
+    { label: 'Keine Einspeisung', value: 'Keine Einspeisung' }
+  ];
+
+  // Form handlers
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
+  const handleNext = () => {
+    if (activeStep < stepItems.length - 1) {
+      setActiveStep(prev => prev + 1);
+    }
   };
 
-  const getLabel = (key: string, fallback: string) => texts[key] || fallback;
+  const handlePrevious = () => {
+    if (activeStep > 0) {
+      setActiveStep(prev => prev - 1);
+    }
+  };
+
+  const handleCalculate = () => {
+    if (onCalculate) {
+      const result = onCalculate(formData);
+      setCalculation(result);
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Berechnung abgeschlossen',
+        detail: `Anlage: ${result.system_power_kwp} kWp, Jahresertrag: ${result.annual_yield_kwh.toLocaleString()} kWh`
+      });
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!formData.project_name?.trim()) {
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Validierungsfehler',
+        detail: 'Projektname ist erforderlich'
+      });
+      return;
+    }
+
+    onSave(formData as Omit<Project, 'id'>);
+  };
+
+  const canProceed = (step: number): boolean => {
+    switch (step) {
+      case 0:
+        return !!(formData.project_name?.trim());
+      case 1:
+        return !!(formData.free_roof_area_sqm && formData.annual_consumption_kwh);
+      case 2:
+        return true; // Simplified for now
+      default:
+        return true;
+    }
+  };
 
   return (
-    <div className="project-form-container">
-      <form onSubmit={handleSubmit} className="project-form">
-        <h2>{mode === 'add' 
-          ? getLabel('crm_add_new_project_header', 'Neues Projekt anlegen')
-          : getLabel('crm_edit_project_header', 'Projekt bearbeiten')
-        }</h2>
-
-        <div className="form-section">
-          <h3>{getLabel('crm_project_basic_info', 'Grunddaten')}</h3>
-          
-          <div className="form-group">
-            <label>Kunde</label>
-            <input
-              type="text"
-              value={`${customer.first_name} ${customer.last_name}${customer.company_name ? ` (${customer.company_name})` : ''}`}
-              disabled
-            />
-          </div>
-
-          <div className="form-group">
-            <label>{getLabel('crm_project_name_label', 'Projektname')}</label>
-            <input
-              type="text"
-              value={formData.project_name}
-              onChange={(e) => handleInputChange('project_name', e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>{getLabel('crm_project_status_label', 'Status')}</label>
-            <select
-              value={formData.project_status || ''}
-              onChange={(e) => handleInputChange('project_status', e.target.value)}
-            >
-              <option value="">-- Bitte auswählen --</option>
-              <option value="Angebot">Angebot</option>
-              <option value="In Planung">In Planung</option>
-              <option value="Installiert">Installiert</option>
-              <option value="Abgeschlossen">Abgeschlossen</option>
-              <option value="Storniert">Storniert</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3>{getLabel('crm_project_roof_details', 'Dachdaten')}</h3>
-          
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('roof_type_label', 'Dachart')}</label>
-              <select
-                value={formData.roof_type || ''}
-                onChange={(e) => handleInputChange('roof_type', e.target.value)}
-              >
-                <option value="">-- Bitte auswählen --</option>
-                <option value="Satteldach">Satteldach</option>
-                <option value="Flachdach">Flachdach</option>
-                <option value="Sonstiges">Sonstiges</option>
-              </select>
-            </div>
-            
-            <div className="form-group flex-1">
-              <label>{getLabel('roof_covering_label', 'Dachdeckungsart')}</label>
-              <select
-                value={formData.roof_covering_type || ''}
-                onChange={(e) => handleInputChange('roof_covering_type', e.target.value)}
-              >
-                <option value="">-- Bitte auswählen --</option>
-                <option value="Ziegel">Ziegel</option>
-                <option value="Blech">Blech</option>
-                <option value="Bitumen">Bitumen</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('free_roof_area_label', 'Freie Dachfläche (m²)')}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={formData.free_roof_area_sqm || 0}
-                onChange={(e) => handleInputChange('free_roof_area_sqm', parseFloat(e.target.value) || 0)}
-              />
-            </div>
-            
-            <div className="form-group flex-1">
-              <label>{getLabel('roof_orientation_label', 'Dachausrichtung')}</label>
-              <select
-                value={formData.roof_orientation || ''}
-                onChange={(e) => handleInputChange('roof_orientation', e.target.value)}
-              >
-                <option value="">-- Bitte auswählen --</option>
-                <option value="Süd">Süd</option>
-                <option value="Ost">Ost</option>
-                <option value="West">West</option>
-                <option value="Nord">Nord</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('roof_inclination_label', 'Dachneigung (°)')}</label>
-              <input
-                type="number"
-                min="0"
-                max="90"
-                step="1"
-                value={formData.roof_inclination_deg || 0}
-                onChange={(e) => handleInputChange('roof_inclination_deg', parseInt(e.target.value) || 0)}
-              />
-            </div>
-
-            <div className="form-group flex-1">
-              <label>{getLabel('building_height_label', 'Gebäudehöhe > 7m (1=Ja, 0=Nein)')}</label>
-              <select
-                value={formData.building_height_gt_7m || 0}
-                onChange={(e) => handleInputChange('building_height_gt_7m', parseInt(e.target.value) || 0)}
-              >
-                <option value={0}>Nein</option>
-                <option value={1}>Ja</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3>{getLabel('crm_project_consumption', 'Verbrauchsdaten')}</h3>
-          
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('annual_consumption_label', 'Jahresverbrauch Haushalt (kWh)')}</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.annual_consumption_kwh || 0}
-                onChange={(e) => handleInputChange('annual_consumption_kwh', parseInt(e.target.value) || 0)}
-              />
-            </div>
-            
-            <div className="form-group flex-1">
-              <label>{getLabel('costs_household_label', 'Stromkosten Haushalt (€/Monat)')}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.costs_household_euro_mo || 0}
-                onChange={(e) => handleInputChange('costs_household_euro_mo', parseFloat(e.target.value) || 0)}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('annual_heating_label', 'Jahresverbrauch Heizung (kWh)')}</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.annual_heating_kwh || 0}
-                onChange={(e) => handleInputChange('annual_heating_kwh', parseInt(e.target.value) || 0)}
-              />
-            </div>
-            
-            <div className="form-group flex-1">
-              <label>{getLabel('costs_heating_label', 'Heizkosten (€/Monat)')}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.costs_heating_euro_mo || 0}
-                onChange={(e) => handleInputChange('costs_heating_euro_mo', parseFloat(e.target.value) || 0)}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3>{getLabel('crm_project_system_config', 'Anlagenkonfiguration')}</h3>
-          
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('anlage_type_label', 'Anlagentyp')}</label>
-              <input
-                type="text"
-                value={formData.anlage_type || ''}
-                onChange={(e) => handleInputChange('anlage_type', e.target.value)}
-              />
-            </div>
-            
-            <div className="form-group flex-1">
-              <label>{getLabel('feed_in_type_label', 'Einspeiseart')}</label>
-              <input
-                type="text"
-                value={formData.feed_in_type || ''}
-                onChange={(e) => handleInputChange('feed_in_type', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>{getLabel('module_quantity_label', 'Anzahl Module')}</label>
-            <input
-              type="number"
-              min="0"
-              value={formData.module_quantity || 0}
-              onChange={(e) => handleInputChange('module_quantity', parseInt(e.target.value) || 0)}
-            />
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3>{getLabel('crm_project_components', 'Komponenten')}</h3>
-          
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={(formData.include_storage || 0) === 1}
-                  onChange={(e) => handleInputChange('include_storage', e.target.checked ? 1 : 0)}
-                />
-                {getLabel('include_storage_label', 'Speicher einschließen')}
-              </label>
-            </div>
-
-            <div className="form-group flex-1">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={(formData.include_additional_components || 0) === 1}
-                  onChange={(e) => handleInputChange('include_additional_components', e.target.checked ? 1 : 0)}
-                />
-                {getLabel('include_additional_components_label', 'Zusatzkomponenten einschließen')}
-              </label>
-            </div>
-          </div>
-
-          {formData.include_storage === 1 && (
-            <div className="form-group">
-              <label>{getLabel('storage_power_label', 'Speicherleistung (kW)')}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={formData.selected_storage_storage_power_kw || 0}
-                onChange={(e) => handleInputChange('selected_storage_storage_power_kw', parseFloat(e.target.value) || 0)}
+    <div className="project-form-container p-4">
+      <Toast ref={toast} />
+      
+      <Card className="mb-4">
+        <div className="card-header flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">
+            {project?.id ? 'Projekt bearbeiten' : 'Neues Projekt'}
+          </h2>
+          {customer && (
+            <div className="customer-info">
+              <Chip 
+                label={`${customer.first_name} ${customer.last_name}`}
+                icon="pi pi-user"
+                className="mr-2"
               />
             </div>
           )}
-
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={(formData.visualize_roof_in_pdf || 0) === 1}
-                onChange={(e) => handleInputChange('visualize_roof_in_pdf', e.target.checked ? 1 : 0)}
-              />
-              {getLabel('visualize_roof_label', 'Dach in PDF visualisieren')}
-            </label>
-          </div>
         </div>
 
-        <div className="form-section">
-          <h3>{getLabel('crm_project_location', 'Standort')}</h3>
-          
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>{getLabel('latitude_label', 'Breitengrad')}</label>
-              <input
-                type="number"
-                step="0.000001"
-                value={formData.latitude || ''}
-                onChange={(e) => handleInputChange('latitude', parseFloat(e.target.value) || undefined)}
-              />
+        {/* Progress Steps */}
+        <Steps 
+          model={stepItems} 
+          activeIndex={activeStep} 
+          className="mb-6"
+          readOnly={false}
+        />
+
+        <form className="project-form">
+          {/* Step 0: Grunddaten */}
+          {activeStep === 0 && (
+            <div className="form-step">
+              <div className="form-section">
+                <h3 className="text-xl font-semibold mb-4">
+                  <i className="pi pi-info-circle mr-2"></i>
+                  {getLabel('crm_project_basic_info', 'Grunddaten')}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="field">
+                    <label htmlFor="project_name" className="font-medium">
+                      {getLabel('crm_project_name', 'Projektname')} *
+                    </label>
+                    <InputText
+                      id="project_name"
+                      value={formData.project_name || ''}
+                      onChange={(e) => handleInputChange('project_name', e.target.value)}
+                      placeholder="PV-Anlage Familie Mustermann"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="status" className="font-medium">
+                      {getLabel('crm_project_status', 'Status')}
+                    </label>
+                    <Dropdown
+                      id="status"
+                      value={formData.project_status}
+                      options={statusOptions}
+                      onChange={(e) => handleInputChange('project_status', e.value)}
+                      placeholder="Status auswählen"
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Priority field removed as not in Project interface */}
+                </div>
+              </div>
             </div>
-            
-            <div className="form-group flex-1">
-              <label>{getLabel('longitude_label', 'Längengrad')}</label>
-              <input
-                type="number"
-                step="0.000001"
-                value={formData.longitude || ''}
-                onChange={(e) => handleInputChange('longitude', parseFloat(e.target.value) || undefined)}
+          )}
+
+          {/* Step 1: Dach & Verbrauch */}
+          {activeStep === 1 && (
+            <div className="form-step">
+              <div className="form-section">
+                <h3 className="text-xl font-semibold mb-4">
+                  <i className="pi pi-home mr-2"></i>
+                  {getLabel('crm_project_roof_details', 'Dachdaten')}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="field">
+                    <label htmlFor="roof_type" className="font-medium">
+                      {getLabel('crm_project_roof_type', 'Dachtyp')}
+                    </label>
+                    <Dropdown
+                      id="roof_type"
+                      value={formData.roof_type}
+                      options={roofTypeOptions}
+                      onChange={(e) => handleInputChange('roof_type', e.value)}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="roof_covering" className="font-medium">
+                      {getLabel('crm_project_roof_covering', 'Dachbedeckung')}
+                    </label>
+                    <Dropdown
+                      id="roof_covering"
+                      value={formData.roof_covering_type}
+                      options={roofCoveringOptions}
+                      onChange={(e) => handleInputChange('roof_covering_type', e.value)}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="roof_area" className="font-medium">
+                      {getLabel('crm_project_roof_area', 'Dachfläche (m²)')} *
+                    </label>
+                    <InputNumber
+                      id="roof_area"
+                      value={formData.free_roof_area_sqm}
+                      onChange={(e) => handleInputChange('free_roof_area_sqm', e.value)}
+                      placeholder="120"
+                      suffix=" m²"
+                      min={0}
+                      max={1000}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="roof_orientation" className="font-medium">
+                      {getLabel('crm_project_roof_orientation', 'Ausrichtung')}
+                    </label>
+                    <Dropdown
+                      id="roof_orientation"
+                      value={formData.roof_orientation}
+                      options={orientationOptions}
+                      onChange={(e) => handleInputChange('roof_orientation', e.value)}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="roof_inclination" className="font-medium">
+                      {getLabel('crm_project_roof_inclination', 'Neigungswinkel')}
+                    </label>
+                    <InputNumber
+                      id="roof_inclination"
+                      value={formData.roof_inclination_deg}
+                      onChange={(e) => handleInputChange('roof_inclination_deg', e.value)}
+                      placeholder="30"
+                      suffix="°"
+                      min={0}
+                      max={90}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <Divider />
+
+                <h4 className="text-lg font-semibold mb-3">
+                  <i className="pi pi-bolt mr-2"></i>
+                  {getLabel('crm_project_consumption', 'Verbrauchsdaten')}
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="field">
+                    <label htmlFor="annual_consumption" className="font-medium">
+                      {getLabel('crm_project_annual_consumption', 'Jahresverbrauch (kWh)')} *
+                    </label>
+                    <InputNumber
+                      id="annual_consumption"
+                      value={formData.annual_consumption_kwh}
+                      onChange={(e) => handleInputChange('annual_consumption_kwh', e.value)}
+                      placeholder="4000"
+                      suffix=" kWh"
+                      min={0}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="energy_costs" className="font-medium">
+                      {getLabel('crm_project_energy_costs', 'Stromkosten (€/Monat)')}
+                    </label>
+                    <InputNumber
+                      id="energy_costs"
+                      value={formData.costs_household_euro_mo}
+                      onChange={(e) => handleInputChange('costs_household_euro_mo', e.value)}
+                      placeholder="100"
+                      mode="currency"
+                      currency="EUR"
+                      locale="de-DE"
+                      min={0}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Anlagenkonfiguration */}
+          {activeStep === 2 && (
+            <div className="form-step">
+              <div className="form-section">
+                <h3 className="text-xl font-semibold mb-4">
+                  <i className="pi pi-cog mr-2"></i>
+                  {getLabel('crm_project_system_config', 'Anlagenkonfiguration')}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="field">
+                    <label htmlFor="plant_type" className="font-medium">
+                      {getLabel('crm_project_plant_type', 'Anlagentyp')}
+                    </label>
+                    <Dropdown
+                      id="plant_type"
+                      value={formData.anlage_type}
+                      options={plantTypeOptions}
+                      onChange={(e) => handleInputChange('anlage_type', e.value)}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="feed_in_type" className="font-medium">
+                      {getLabel('crm_project_feed_in_type', 'Einspeiseart')}
+                    </label>
+                    <Dropdown
+                      id="feed_in_type"
+                      value={formData.feed_in_type}
+                      options={feedInTypeOptions}
+                      onChange={(e) => handleInputChange('feed_in_type', e.value)}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="module_quantity" className="font-medium">
+                      {getLabel('crm_project_module_quantity', 'Modulanzahl')} *
+                    </label>
+                    <InputNumber
+                      id="module_quantity"
+                      value={formData.module_quantity}
+                      onChange={(e) => handleInputChange('module_quantity', e.value)}
+                      placeholder="20"
+                      min={1}
+                      max={100}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {calculation && (
+                  <div className="calculation-results mt-4 p-4 bg-gray-50 rounded">
+                    <h4 className="text-lg font-semibold mb-3">Berechnungsergebnis</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="stat">
+                        <span className="text-sm text-gray-600">Anlagenleistung</span>
+                        <div className="text-lg font-bold">{calculation.system_power_kwp} kWp</div>
+                      </div>
+                      <div className="stat">
+                        <span className="text-sm text-gray-600">Jahresertrag</span>
+                        <div className="text-lg font-bold">{calculation.annual_yield_kwh.toLocaleString()} kWh</div>
+                      </div>
+                      <div className="stat">
+                        <span className="text-sm text-gray-600">Gesamtkosten</span>
+                        <div className="text-lg font-bold">{calculation.total_cost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <Button
+                    label="Berechnung ausführen"
+                    icon="pi pi-calculator"
+                    onClick={handleCalculate}
+                    className="p-button-outlined"
+                    disabled={!canProceed(2)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Komponenten & Standort */}
+          {activeStep === 3 && (
+            <div className="form-step">
+              <div className="form-section">
+                <h3 className="text-xl font-semibold mb-4">
+                  <i className="pi pi-map-marker mr-2"></i>
+                  {getLabel('crm_project_location', 'Standortdaten')}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="field">
+                    <p className="text-gray-600">
+                      Standortdaten werden automatisch aus den Kundendaten übernommen.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="form-navigation flex justify-between mt-6 pt-4 border-t border-gray-200">
+            <Button
+              label="Zurück"
+              icon="pi pi-chevron-left"
+              className="p-button-outlined"
+              onClick={handlePrevious}
+              disabled={activeStep === 0}
+            />
+
+            <div className="flex gap-2">
+              <Button
+                label="Abbrechen"
+                icon="pi pi-times"
+                className="p-button-outlined p-button-danger"
+                onClick={onCancel}
               />
+
+              {activeStep < stepItems.length - 1 ? (
+                <Button
+                  label="Weiter"
+                  icon="pi pi-chevron-right"
+                  iconPos="right"
+                  onClick={handleNext}
+                  disabled={!canProceed(activeStep)}
+                />
+              ) : (
+                <Button
+                  label="Projekt speichern"
+                  icon="pi pi-save"
+                  className="p-button-success"
+                  onClick={handleSubmit}
+                  disabled={!canProceed(activeStep)}
+                />
+              )}
             </div>
           </div>
-        </div>
-
-        <div className="form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            {getLabel('cancel_button', 'Abbrechen')}
-          </button>
-          <button type="submit" className="btn btn-primary">
-            {mode === 'add' 
-              ? getLabel('save_project_button', 'Projekt speichern')
-              : getLabel('update_project_button', 'Änderungen speichern')
-            }
-          </button>
-        </div>
-      </form>
+        </form>
+      </Card>
     </div>
   );
-};
+}

@@ -429,11 +429,12 @@ export default function AdditionalOptions() {
             </label>
           </div>
           <Field label="Monitoring-Level">
-            <select 
-              className="w-full rounded border border-slate-300 px-3 py-2" 
-              value={monitoring_level_preference} 
-              onChange={(e) => setMonitoringLevelPreference(e.target.value)}
-            >
+          <select 
+            className="w-full rounded border border-slate-300 px-3 py-2" 
+            value={monitoring_level_preference} 
+            onChange={(e) => setMonitoringLevelPreference(e.target.value)}
+            title="Monitoring-Level auswählen"
+          >
               <option value="">Basis-Monitoring</option>
               <option value="basic">Grundfunktionen</option>
               <option value="advanced">Erweitert</option>

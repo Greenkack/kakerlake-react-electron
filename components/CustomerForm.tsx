@@ -147,6 +147,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 type="text"
                 value={formData.zip_code}
                 onChange={(e) => handleInputChange('zip_code', e.target.value)}
+                placeholder="PLZ eingeben"
+                title="Postleitzahl"
               />
             </div>
             

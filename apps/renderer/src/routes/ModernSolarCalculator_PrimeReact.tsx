@@ -438,7 +438,7 @@ export default function ModernSolarCalculator() {
           )}
         </div>
         
-        <div className="flex flex-column gap-2" style={{minWidth: '120px'}}>
+        <div className="flex flex-column gap-2 min-w-120">
           <Button 
             label="Auswählen" 
             className="p-button-primary"
@@ -553,7 +553,6 @@ export default function ModernSolarCalculator() {
                   model={steps} 
                   activeIndex={activeStep}
                   onSelect={(e) => setActiveStep(e.index)}
-                  orientation="vertical"
                   readOnly={false}
                 />
                 

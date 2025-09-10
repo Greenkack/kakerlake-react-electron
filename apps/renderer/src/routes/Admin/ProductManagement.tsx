@@ -431,6 +431,7 @@ export default function ProductManagement(): JSX.Element {
                 <input
                   type="file"
                   accept=".png,.jpg,.jpeg"
+                  title="Produktbild auswählen (PNG, JPG, max. 2MB)"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleImageUpload(file);

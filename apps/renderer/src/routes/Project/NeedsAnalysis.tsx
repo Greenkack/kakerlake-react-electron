@@ -191,6 +191,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={primary_goal} 
               onChange={(e) => setPrimaryGoal(e.target.value)}
+              title="Primäres Ziel der PV-Anlage auswählen"
               required
             >
               <option value="">Bitte wählen</option>
@@ -240,6 +241,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={installation_time_preference} 
               onChange={(e) => setInstallationTime(e.target.value)}
+              title="Gewünschte Installationszeit auswählen"
             >
               <option value="">Keine Präferenz</option>
               <option value="asap">So schnell wie möglich</option>
@@ -255,6 +257,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={technology_preference} 
               onChange={(e) => setTechnologyPreference(e.target.value)}
+              title="Technologie-Präferenz auswählen"
             >
               <option value="">Keine Präferenz</option>
               <option value="latest">Neueste Technologie</option>
@@ -268,12 +271,12 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={warranty_importance} 
               onChange={(e) => setWarrantyImportance(e.target.value)}
+              title="Wichtigkeit der Garantie auswählen"
             >
               <option value="">Nicht wichtig</option>
               <option value="low">Wenig wichtig</option>
               <option value="medium">Mittel wichtig</option>
               <option value="high">Sehr wichtig</option>
-              <option value="critical">Kritisch</option>
             </select>
           </Field>
           <Field label="Wichtigkeit des Services">
@@ -281,6 +284,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={service_importance} 
               onChange={(e) => setServiceImportance(e.target.value)}
+              title="Wichtigkeit des Services auswählen"
             >
               <option value="">Nicht wichtig</option>
               <option value="low">Wenig wichtig</option>
@@ -294,20 +298,21 @@ export default function NeedsAnalysis() {
 
       {/* Anbieter & Marken */}
       <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-lg font-medium mb-4">Anbieter &amp; Marken-Präferenzen</h3>
+        <h3 className="text-lg font-medium mb-4">Anbieter &amp; Marken</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <Field label="Marken-Präferenz">
             <select 
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={brand_preference} 
               onChange={(e) => setBrandPreference(e.target.value)}
+              title="Marken-Präferenz auswählen"
             >
               <option value="">Keine Präferenz</option>
               <option value="german">Deutsche Marken bevorzugt</option>
               <option value="european">Europäische Marken</option>
+              <option value="global">Internationale Marken</option>
               <option value="premium">Premium-Marken</option>
-              <option value="value">Preis-Leistung</option>
-              <option value="specific">Spezifische Marke gewünscht</option>
+              <option value="value">Preis-Leistungs-Sieger</option>
             </select>
           </Field>
           <Field label="Installateur-Präferenz">
@@ -315,6 +320,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={installer_preference} 
               onChange={(e) => setInstallerPreference(e.target.value)}
+              title="Installateur-Präferenz auswählen"
             >
               <option value="">Keine Präferenz</option>
               <option value="local">Lokaler Anbieter</option>
@@ -336,13 +342,13 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={aesthetic_requirements} 
               onChange={(e) => setAestheticRequirements(e.target.value)}
+              title="Ästhetische Anforderungen auswählen"
             >
               <option value="">Nicht wichtig</option>
-              <option value="black_modules">Schwarze Module bevorzugt</option>
-              <option value="uniform_look">Einheitliches Erscheinungsbild</option>
-              <option value="architectural_integration">Architektonische Integration</option>
-              <option value="minimal_visible">Minimal sichtbar</option>
-              <option value="statement">Sichtbares Statement</option>
+              <option value="low">Wenig wichtig</option>
+              <option value="medium">Mittel wichtig</option>
+              <option value="high">Sehr wichtig</option>
+              <option value="critical">Entscheidend</option>
             </select>
           </Field>
           <Field label="Dachflächennutzung">
@@ -350,6 +356,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={roof_space_usage} 
               onChange={(e) => setRoofSpaceUsage(e.target.value)}
+              title="Dachflächennutzung auswählen"
             >
               <option value="">Keine Präferenz</option>
               <option value="maximum">Maximale Nutzung</option>
@@ -369,6 +376,8 @@ export default function NeedsAnalysis() {
           <div className="space-y-3">
             <label className="flex items-center gap-2">
               <input 
+            <label className="flex items-center gap-2">
+              <input 
                 type="checkbox" 
                 checked={future_expansion} 
                 onChange={(e) => setFutureExpansion(e.target.checked)} 
@@ -381,7 +390,7 @@ export default function NeedsAnalysis() {
                 checked={smart_home_integration} 
                 onChange={(e) => setSmartHomeIntegration(e.target.checked)} 
               />
-              <span>Smart Home Integration gewünscht</span>
+              <span>Smart-Home-Integration gewünscht</span>
             </label>
           </div>
           <Field label="Monitoring-Wünsche">
@@ -389,6 +398,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={monitoring_wishes} 
               onChange={(e) => setMonitoringWishes(e.target.value)}
+              title="Monitoring-Wünsche auswählen"
             >
               <option value="">Nicht wichtig</option>
               <option value="basic">Grundlegendes Monitoring</option>
@@ -401,7 +411,7 @@ export default function NeedsAnalysis() {
         </div>
       </div>
 
-      {/* Umwelt & Rechtliches */}
+      {/* Umwelt & Rechtliche Aspekte */}
       <div className="bg-white rounded-lg border p-6">
         <h3 className="text-lg font-medium mb-4">Umwelt &amp; Rechtliche Aspekte</h3>
         <div className="grid md:grid-cols-2 gap-4">
@@ -410,6 +420,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={environmental_priority} 
               onChange={(e) => setEnvironmentalPriority(e.target.value)}
+              title="Umwelt-Priorität auswählen"
             >
               <option value="">Nicht wichtig</option>
               <option value="low">Wenig wichtig</option>
@@ -423,6 +434,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={grid_connection_status} 
               onChange={(e) => setGridConnectionStatus(e.target.value)}
+              title="Netzanschluss-Status auswählen"
             >
               <option value="">Unbekannt</option>
               <option value="existing">Vorhanden</option>
@@ -431,8 +443,6 @@ export default function NeedsAnalysis() {
               <option value="pending">In Klärung</option>
             </select>
           </Field>
-          <div className="space-y-3">
-            <label className="flex items-center gap-2">
               <input 
                 type="checkbox" 
                 checked={noise_restrictions} 
@@ -451,10 +461,12 @@ export default function NeedsAnalysis() {
             <label className="flex items-center gap-2">
               <input 
                 type="checkbox" 
+              <input 
+                type="checkbox" 
                 checked={insurance_clarification} 
                 onChange={(e) => setInsuranceClarification(e.target.checked)} 
               />
-              <span>Versicherungsfragen bereits geklärt</span>
+              <span>Versicherung bereits geklärt</span>
             </label>
           </div>
         </div>
@@ -469,6 +481,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={storage_priority} 
               onChange={(e) => setStoragePriority(e.target.value)}
+              title="Speicher-Priorität auswählen"
             >
               <option value="">Nicht wichtig</option>
               <option value="low">Niedrig</option>
@@ -482,6 +495,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={backup_power_need} 
               onChange={(e) => setBackupPowerNeed(e.target.value)}
+              title="Notstrom-Bedarf auswählen"
             >
               <option value="">Nicht erforderlich</option>
               <option value="basic">Grundversorgung</option>
@@ -495,6 +509,7 @@ export default function NeedsAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={feed_in_vs_self_consumption} 
               onChange={(e) => setFeedInVsSelfConsumption(e.target.value)}
+              title="Einspeisung vs. Eigenverbrauch auswählen"
             >
               <option value="">Keine Präferenz</option>
               <option value="max_feed_in">Maximale Einspeisung</option>
@@ -505,8 +520,6 @@ export default function NeedsAnalysis() {
           </Field>
         </div>
       </div>
-
-      {/* Sonderanforderungen */}
       <div className="bg-white rounded-lg border p-6">
         <h3 className="text-lg font-medium mb-4">Sonderanforderungen</h3>
         <Field label="Besondere Wünsche oder Anforderungen">
