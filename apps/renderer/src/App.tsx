@@ -28,6 +28,7 @@ export default function App(): JSX.Element {
       label: 'Kalkulation',
       icon: 'pi pi-fw pi-calculator',
       items: [
+        { label: '🌞 Premium Solar Calculator', url: '/calc/solar-premium' },
         { label: 'Solarkalkulator', url: '/calc/solar' },
         { label: 'Erweiterte Berechnungen', url: '/calc/advanced' },
         { label: 'Wärmepumpen-Sim', url: '/calc/heatpump' },

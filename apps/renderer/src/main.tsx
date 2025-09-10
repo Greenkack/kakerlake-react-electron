@@ -406,7 +406,7 @@ function App() {
             <Route path="project/options" element={<ModernPageWrapper title="Zusatzoptionen & Konfiguration" category="project"><AdditionalOptions /></ModernPageWrapper>} />
             
             {/* Calculation Routes - Real Components with Modern Layout */}
-            <Route path="calc/solar" element={<ModernPageWrapper title="Solarkalkulator & PV-Auslegung" category="calc"><SolarCalculator /></ModernPageWrapper>} />
+            <Route path="calc/solar" element={<SolarCalculator />} />
             <Route path="calc/heatpump" element={<ModernPageWrapper title="Wärmepumpen-Simulator" category="calc"><HeatpumpSimulator /></ModernPageWrapper>} />
             <Route path="calc/results" element={<ModernPageWrapper title="Ergebnisse & Dashboard" category="calc"><Results /></ModernPageWrapper>} />
             <Route path="calc/advanced" element={<AdvancedCalculations />} />

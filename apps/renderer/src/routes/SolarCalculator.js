@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useProject } from '../lib/projectContext';
+import { useProject } from '../state/project';
 // Mock-Ladefunktion – später ersetzen durch echte Bridge (IPC/fetch)
 function useProducts() {
     const [data, setData] = useState({ modules: [], inverters: [], storages: [] });

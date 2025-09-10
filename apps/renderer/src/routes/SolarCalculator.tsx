@@ -1,6 +1,33 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProject } from '../state/project';
+
+// PrimeReact Core Imports
+import { Steps } from 'primereact/steps';
+import { Card } from 'primereact/card';
+import { Button } from 'primereact/button';
+import { Dropdown } from 'primereact/dropdown';
+import { InputNumber } from 'primereact/inputnumber';
+import { Checkbox } from 'primereact/checkbox';
+import { InputText } from 'primereact/inputtext';
+import { Divider } from 'primereact/divider';
+import { Panel } from 'primereact/panel';
+import { Badge } from 'primereact/badge';
+import { Tag } from 'primereact/tag';
+import { Chip } from 'primereact/chip';
+import { ProgressBar } from 'primereact/progressbar';
+import { Toast } from 'primereact/toast';
+import { Message } from 'primereact/message';
+import { TabView, TabPanel } from 'primereact/tabview';
+import { Accordion, AccordionTab } from 'primereact/accordion';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+
+// PrimeReact Styles
+import 'primereact/resources/themes/saga-blue/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
 
 // Produkt-Typ mit deutschen, standardisierten Keys
 interface Product {
@@ -13,14 +40,7 @@ interface Product {
   kapazitaet_speicher_kwh?: number;
 }
 
-// Solar Ca                  <input 
-                    type="number" 
-                    className="w-full rounded border px-3 py-2" 
-                    title="Anzahl PV-Module"
-                    placeholder="z.B. 25"
-                    value={config.moduleQty} 
-                    onChange={e => setConfig(prev => ({...prev, moduleQty: parseInt(e.target.value || '0', 10)}))} 
-                  />culator State Interface
+// Solar Calculator State Interface
 interface SolarConfig {
   moduleQty: number;
   moduleBrand: string;
@@ -134,6 +154,18 @@ export default function SolarCalculator(): JSX.Element {
   const navigate = useNavigate();
   const { state: projectState } = useProject();
   const { modules: moduleProducts, inverters, storages } = useProducts();
+  const toast = useRef<Toast>(null);
+
+  // Wizard Steps
+  const [activeStep, setActiveStep] = useState(0);
+  
+  const steps = [
+    { label: 'Module', icon: 'pi pi-th-large' },
+    { label: 'Wechselrichter', icon: 'pi pi-bolt' },
+    { label: 'Speicher', icon: 'pi pi-battery-2' },
+    { label: 'Zusatzkomponenten', icon: 'pi pi-cog' },
+    { label: 'Ergebnisse', icon: 'pi pi-chart-line' }
+  ];
 
   // State für zusätzliche Komponenten
   const [wallboxProducts, setWallboxProducts] = useState<Product[]>([]);
@@ -143,7 +175,7 @@ export default function SolarCalculator(): JSX.Element {
   const [emergencyPowerProducts, setEmergencyPowerProducts] = useState<Product[]>([]);
   const [animalProtectionProducts, setAnimalProtectionProducts] = useState<Product[]>([]);
 
-  // Schritt-Logik (2 Seiten: Technik Kern / Zusatz folgt später)
+  // Schritt-Logik (legacy)
   const [step, setStep] = useState<number>(1);
 
   // Solar Config State - initialisiert mit realistischen Demo-Werten aus echter DB
@@ -195,9 +227,9 @@ export default function SolarCalculator(): JSX.Element {
 
   // Gebäudedaten für intelligente Vorschläge
   const buildingData = projectState.building;
-  const roofArea = buildingData.freeAreaM2 || 0;
-  const roofOrientation = buildingData.roofOrientation || 'Süd';
-  const roofTilt = buildingData.tiltDeg || 35;
+  const roofArea = buildingData?.roofArea || 0;
+  const roofOrientation = buildingData?.roofOrientation || 'Süd';
+  const roofTilt = buildingData?.roofTilt || 35;
 
   // Intelligente Vorschläge basierend auf Gebäudedaten
   const suggestions = useMemo(() => {
@@ -363,7 +395,10 @@ export default function SolarCalculator(): JSX.Element {
   const currentStorage = filteredStorageModels.find(p => p.produkt_modell === config.storageModel);
   const storageModelKWh = currentStorage?.kapazitaet_speicher_kwh || 0;
   
-  // Filtered Models für zusätzliche Komponenten
+  // Data processing for all dropdowns
+  const moduleModels = moduleProducts.filter((p: Product) => !config.moduleBrand || p.hersteller === config.moduleBrand);
+  const inverterModels = inverters.filter((p: Product) => !config.invBrand || p.hersteller === config.invBrand);
+  const storageModels = storages.filter((p: Product) => !config.storageBrand || p.hersteller === config.storageBrand);
   const wallboxModels = wallboxProducts.filter((p: Product) => !config.wallboxBrand || p.hersteller === config.wallboxBrand);
   const emsModels = emsProducts.filter((p: Product) => !config.emsBrand || p.hersteller === config.emsBrand);
   const optimizerModels = optimizerProducts.filter((p: Product) => !config.optimizerBrand || p.hersteller === config.optimizerBrand);
@@ -412,6 +447,395 @@ export default function SolarCalculator(): JSX.Element {
     }
   }
 
+  // Navigation functions
+  const nextStep = () => {
+    if (activeStep < steps.length - 1) {
+      setActiveStep(activeStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (activeStep > 0) {
+      setActiveStep(activeStep - 1);
+    }
+  };
+
+  // Step content renderers
+  const renderModuleStep = () => (
+    <Card title="🔆 PV-Module konfigurieren">
+      <div className="grid">
+        <div className="col-12 md:col-4">
+          <label className="block text-900 font-medium mb-2">Anzahl Module</label>
+          <InputNumber
+            value={config.moduleQty}
+            onValueChange={(e) => setConfig(prev => ({...prev, moduleQty: e.value || 0}))}
+            min={1}
+            max={100}
+            showButtons
+            className="w-full"
+          />
+        </div>
+        
+        <div className="col-12 md:col-4">
+          <label className="block text-900 font-medium mb-2">Hersteller</label>
+          <Dropdown
+            value={config.moduleBrand}
+            onChange={(e) => setConfig(prev => ({...prev, moduleBrand: e.value, moduleModel: ''}))}
+            options={moduleBrands.map(brand => ({ label: brand, value: brand }))}
+            placeholder="Hersteller wählen"
+            className="w-full"
+            filter
+          />
+        </div>
+        
+        <div className="col-12 md:col-4">
+          <label className="block text-900 font-medium mb-2">Modell</label>
+          <Dropdown
+            value={config.moduleModel}
+            onChange={(e) => setConfig(prev => ({...prev, moduleModel: e.value}))}
+            options={moduleModels.map(product => ({ 
+              label: `${product.produkt_modell} (${product.pv_modul_leistung}W)`, 
+              value: product.produkt_modell 
+            }))}
+            placeholder="Modell wählen"
+            className="w-full"
+            disabled={!config.moduleBrand}
+            filter
+          />
+        </div>
+      </div>
+      
+      {config.moduleModel && (
+        <Message 
+          severity="success" 
+          text={`Ausgewählt: ${config.moduleQty} × ${config.moduleModel}`}
+          className="mt-3"
+        />
+      )}
+    </Card>
+  );
+
+  const renderInverterStep = () => (
+    <Card title="⚡ Wechselrichter konfigurieren">
+      <div className="grid">
+        <div className="col-12 md:col-4">
+          <label className="block text-900 font-medium mb-2">Anzahl Wechselrichter</label>
+          <InputNumber
+            value={config.invQty}
+            onValueChange={(e) => setConfig(prev => ({...prev, invQty: Math.max(1, e.value || 1)}))}
+            min={1}
+            max={10}
+            showButtons
+            className="w-full"
+          />
+        </div>
+        
+        <div className="col-12 md:col-4">
+          <label className="block text-900 font-medium mb-2">Hersteller</label>
+          <Dropdown
+            value={config.invBrand}
+            onChange={(e) => setConfig(prev => ({...prev, invBrand: e.value, invModel: ''}))}
+            options={inverterBrands.map(brand => ({ label: brand, value: brand }))}
+            placeholder="Hersteller wählen"
+            className="w-full"
+            filter
+          />
+        </div>
+        
+        <div className="col-12 md:col-4">
+          <label className="block text-900 font-medium mb-2">Modell</label>
+          <Dropdown
+            value={config.invModel}
+            onChange={(e) => setConfig(prev => ({...prev, invModel: e.value}))}
+            options={inverterModels.map(product => ({ 
+              label: `${product.produkt_modell} (${product.wr_leistung_kw}kW)`, 
+              value: product.produkt_modell 
+            }))}
+            placeholder="Modell wählen"
+            className="w-full"
+            disabled={!config.invBrand}
+            filter
+          />
+        </div>
+      </div>
+      
+      {config.invModel && (
+        <Message 
+          severity="success" 
+          text={`Ausgewählt: ${config.invQty} × ${config.invModel}`}
+          className="mt-3"
+        />
+      )}
+    </Card>
+  );
+
+  const renderStorageStep = () => (
+    <Card title="🔋 Batteriespeicher (optional)">
+      <div className="mb-4">
+        <Checkbox
+          inputId="storage-checkbox"
+          checked={config.withStorage}
+          onChange={(e) => setConfig(prev => ({...prev, withStorage: !!e.checked}))}
+        />
+        <label htmlFor="storage-checkbox" className="ml-2 text-900 font-medium">
+          Batteriespeicher hinzufügen
+        </label>
+      </div>
+      
+      {config.withStorage && (
+        <div className="grid">
+          <div className="col-12 md:col-4">
+            <label className="block text-900 font-medium mb-2">Gewünschte Kapazität (kWh)</label>
+            <InputNumber
+              value={config.storageDesiredKWh}
+              onValueChange={(e) => setConfig(prev => ({...prev, storageDesiredKWh: e.value || 0}))}
+              min={0}
+              max={100}
+              suffix=" kWh"
+              className="w-full"
+            />
+          </div>
+          
+          <div className="col-12 md:col-4">
+            <label className="block text-900 font-medium mb-2">Hersteller</label>
+            <Dropdown
+              value={config.storageBrand}
+              onChange={(e) => setConfig(prev => ({...prev, storageBrand: e.value, storageModel: ''}))}
+              options={storageBrands.map(brand => ({ label: brand, value: brand }))}
+              placeholder="Hersteller wählen"
+              className="w-full"
+              filter
+            />
+          </div>
+          
+          <div className="col-12 md:col-4">
+            <label className="block text-900 font-medium mb-2">Modell</label>
+            <Dropdown
+              value={config.storageModel}
+              onChange={(e) => setConfig(prev => ({...prev, storageModel: e.value}))}
+              options={storageModels.map(product => ({ 
+                label: `${product.produkt_modell} (${product.kapazitaet_speicher_kwh}kWh)`, 
+                value: product.produkt_modell 
+              }))}
+              placeholder="Modell wählen"
+              className="w-full"
+              disabled={!config.storageBrand}
+              filter
+            />
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+
+  const renderAdditionalStep = () => (
+    <Card title="🔧 Zusatzkomponenten (optional)">
+      <div className="mb-4">
+        <Checkbox
+          inputId="additional-checkbox"
+          checked={config.additionalComponents}
+          onChange={(e) => setConfig(prev => ({...prev, additionalComponents: !!e.checked}))}
+        />
+        <label htmlFor="additional-checkbox" className="ml-2 text-900 font-medium">
+          Zusatzkomponenten konfigurieren
+        </label>
+      </div>
+      
+      {config.additionalComponents && (
+        <Accordion multiple>
+          <AccordionTab header="🚗 Wallbox">
+            <div className="mb-3">
+              <Checkbox
+                inputId="wallbox-checkbox"
+                checked={config.wallboxEnabled}
+                onChange={(e) => setConfig(prev => ({...prev, wallboxEnabled: !!e.checked}))}
+              />
+              <label htmlFor="wallbox-checkbox" className="ml-2">Wallbox hinzufügen</label>
+            </div>
+            {config.wallboxEnabled && (
+              <div className="grid">
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.wallboxBrand}
+                    onChange={(e) => setConfig(prev => ({...prev, wallboxBrand: e.value, wallboxModel: ''}))}
+                    options={wallboxBrands.map(brand => ({ label: brand, value: brand }))}
+                    placeholder="Hersteller wählen"
+                    className="w-full"
+                  />
+                </div>
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.wallboxModel}
+                    onChange={(e) => setConfig(prev => ({...prev, wallboxModel: e.value}))}
+                    options={wallboxModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell }))}
+                    placeholder="Modell wählen"
+                    className="w-full"
+                    disabled={!config.wallboxBrand}
+                  />
+                </div>
+              </div>
+            )}
+          </AccordionTab>
+        </Accordion>
+      )}
+    </Card>
+  );
+
+  const renderResultsStep = () => (
+    <Card title="📊 Konfigurationsergebnisse">
+      <TabView>
+        <TabPanel header="📋 Zusammenfassung">
+          <div className="grid">
+            <div className="col-12 md:col-6">
+              <Panel header="PV-Module">
+                <p><strong>Anzahl:</strong> {config.moduleQty}</p>
+                <p><strong>Hersteller:</strong> {config.moduleBrand}</p>
+                <p><strong>Modell:</strong> {config.moduleModel}</p>
+              </Panel>
+            </div>
+            <div className="col-12 md:col-6">
+              <Panel header="Wechselrichter">
+                <p><strong>Anzahl:</strong> {config.invQty}</p>
+                <p><strong>Hersteller:</strong> {config.invBrand}</p>
+                <p><strong>Modell:</strong> {config.invModel}</p>
+              </Panel>
+            </div>
+          </div>
+          
+          {config.withStorage && (
+            <Panel header="Batteriespeicher" className="mt-3">
+              <p><strong>Hersteller:</strong> {config.storageBrand}</p>
+              <p><strong>Modell:</strong> {config.storageModel}</p>
+              <p><strong>Kapazität:</strong> {config.storageDesiredKWh} kWh</p>
+            </Panel>
+          )}
+        </TabPanel>
+        
+        <TabPanel header="💰 Berechnungen">
+          <Message severity="info" text="Berechnungen werden hier angezeigt..." />
+        </TabPanel>
+      </TabView>
+      
+      <div className="text-center mt-4">
+        <Button 
+          label="Konfiguration speichern & beenden"
+          icon="pi pi-save"
+          size="large"
+          onClick={finishAndBack}
+        />
+      </div>
+    </Card>
+  );
+
+  const renderStepContent = () => {
+    switch (activeStep) {
+      case 0: return renderModuleStep();
+      case 1: return renderInverterStep();
+      case 2: return renderStorageStep();
+      case 3: return renderAdditionalStep();
+      case 4: return renderResultsStep();
+      default: return null;
+    }
+  };
+
+  return (
+    <div className="solar-calculator-container min-h-screen bg-gray-50 p-4">
+      <Toast ref={toast} />
+      
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-4">
+        <Card>
+          <div className="flex align-items-center justify-content-between">
+            <div>
+              <h1 className="text-3xl font-bold text-900 m-0">
+                ☀️ Solarkalkulator
+              </h1>
+              <p className="text-600 m-0 mt-2">
+                Konfigurieren Sie Ihre Photovoltaikanlage in 5 einfachen Schritten
+              </p>
+            </div>
+            <Button 
+              icon="pi pi-arrow-left" 
+              label="Zurück"
+              className="p-button-outlined"
+              onClick={() => navigate(-1)}
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* Progress Steps */}
+      <div className="max-w-7xl mx-auto mb-4">
+        <Card>
+          <Steps 
+            model={steps} 
+            activeIndex={activeStep}
+            onSelect={(e) => setActiveStep(e.index)}
+            readOnly={false}
+          />
+          
+          <div className="mt-3">
+            <ProgressBar 
+              value={((activeStep + 1) / steps.length) * 100} 
+              showValue={false}
+              className="h-1rem"
+            />
+            <div className="text-center mt-2 text-600">
+              Schritt {activeStep + 1} von {steps.length}: {steps[activeStep].label}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto mb-4">
+        {renderStepContent()}
+      </div>
+
+      {/* Navigation */}
+      {activeStep < 4 && (
+        <div className="max-w-7xl mx-auto">
+          <Card>
+            <div className="flex justify-content-between align-items-center">
+              <Button 
+                label="Zurück"
+                icon="pi pi-arrow-left"
+                className="p-button-outlined"
+                onClick={prevStep}
+                disabled={activeStep === 0}
+              />
+              
+              <div className="text-center">
+                <small className="text-500">
+                  {errors.length > 0 ? `${errors.length} Fehler beheben` : 'Bereit für nächsten Schritt'}
+                </small>
+              </div>
+              
+              <Button 
+                label="Weiter"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                onClick={nextStep}
+                disabled={errors.length > 0}
+              />
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      <style>{`
+        .solar-calculator-container .p-steps .p-steps-item.p-highlight .p-steps-number {
+          background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+          border-color: #FF6B35;
+        }
+        
+        .solar-calculator-container .p-progressbar .p-progressbar-value {
+          background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+        }
+      `}</style>
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="rounded-xl bg-white p-4 shadow flex items-center justify-between">
@@ -441,27 +865,19 @@ export default function SolarCalculator(): JSX.Element {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">PV Module</h2>
             <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="block text-sm mb-1">Anzahl PV Module</label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setConfig(prev => ({...prev, moduleQty: Math.max(0, prev.moduleQty - 1)}))} className="rounded bg-gray-200 px-3 py-2 hover:bg-gray-300">−</button>
-                  <input type="number" className="w-full rounded border px-3 py-2" value={config.moduleQty} onChange={e => setConfig(prev => ({...prev, moduleQty: parseInt(e.target.value || '0', 10)}))} min={0} />
-                  <button type="button" onClick={() => setConfig(prev => ({...prev, moduleQty: prev.moduleQty + 1}))} className="rounded bg-gray-200 px-3 py-2 hover:bg-gray-300">+</button>
+              <div className="flex gap-4">
+                <div>
+                  <label className="block text-sm mb-1">Anzahl PV Module</label>
+                  <InputNumber value={config.moduleQty} onValueChange={e => setConfig(prev => ({...prev, moduleQty: e.value || 0}))} showButtons buttonLayout="horizontal" min={0} className="w-full" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Hersteller</label>
-                <select value={config.moduleBrand} onChange={e => { setConfig(prev => ({...prev, moduleBrand: e.target.value, moduleModel: ''})); }} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {moduleBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Modell</label>
-                <select value={config.moduleModel} onChange={e => setConfig(prev => ({...prev, moduleModel: e.target.value}))} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {filteredModuleModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                </select>
+                <div>
+                  <label className="block text-sm mb-1">Hersteller</label>
+                  <Dropdown value={config.moduleBrand} onChange={e => setConfig(prev => ({...prev, moduleBrand: e.value, moduleModel: ''}))} options={moduleBrands.map(b => ({label: b, value: b}))} placeholder="-- wählen --" className="w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Modell</label>
+                  <Dropdown value={config.moduleModel} onChange={e => setConfig(prev => ({...prev, moduleModel: e.value}))} options={filteredModuleModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))} placeholder="-- wählen --" className="w-full" />
+                </div>
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -483,24 +899,18 @@ export default function SolarCalculator(): JSX.Element {
           {/* WECHSELRICHTER */}
           <div className="space-y-4 pt-2 border-t">
             <h2 className="text-lg font-semibold">Wechselrichter</h2>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="flex gap-4">
               <div>
                 <label className="block text-sm mb-1">Hersteller</label>
-                <select value={config.invBrand} onChange={e => { setConfig(prev => ({...prev, invBrand: e.target.value, invModel: ''})); }} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {inverterBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
+                <Dropdown value={config.invBrand} onChange={e => setConfig(prev => ({...prev, invBrand: e.value, invModel: ''}))} options={inverterBrands.map(b => ({label: b, value: b}))} placeholder="-- wählen --" className="w-full" />
               </div>
               <div>
                 <label className="block text-sm mb-1">Modell</label>
-                <select value={config.invModel} onChange={e => setConfig(prev => ({...prev, invModel: e.target.value}))} className="w-full rounded border px-3 py-2">
-                  <option value="">-- wählen --</option>
-                  {filteredInvModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                </select>
+                <Dropdown value={config.invModel} onChange={e => setConfig(prev => ({...prev, invModel: e.value}))} options={filteredInvModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))} placeholder="-- wählen --" className="w-full" />
               </div>
               <div>
                 <label className="block text-sm mb-1">Anzahl WR</label>
-                <input type="number" className="w-full rounded border px-3 py-2" value={config.invQty} onChange={e => setConfig(prev => ({...prev, invQty: Math.max(1, parseInt(e.target.value || '1', 10))}))} min={1} />
+                <InputNumber value={config.invQty} onValueChange={e => setConfig(prev => ({...prev, invQty: Math.max(1, e.value || 1)}))} showButtons buttonLayout="horizontal" min={1} className="w-full" />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -522,28 +932,18 @@ export default function SolarCalculator(): JSX.Element {
               <label htmlFor="withStorage" className="text-sm font-medium">Batteriespeicher einplanen</label>
             </div>
             {config.withStorage && (
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="flex gap-4">
                 <div>
                   <label className="block text-sm mb-1">Hersteller</label>
-                  <select value={config.storageBrand} onChange={e => { setConfig(prev => ({...prev, storageBrand: e.target.value, storageModel: ''})); }} className="w-full rounded border px-3 py-2">
-                    <option value="">-- wählen --</option>
-                    {storageBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
+                  <Dropdown value={config.storageBrand} onChange={e => setConfig(prev => ({...prev, storageBrand: e.value, storageModel: ''}))} options={storageBrands.map(b => ({label: b, value: b}))} placeholder="-- wählen --" className="w-full" />
                 </div>
-                <div className="md:col-span-2">
+                <div className="flex-grow">
                   <label className="block text-sm mb-1">Modell</label>
-                  <select value={config.storageModel} onChange={e => setConfig(prev => ({...prev, storageModel: e.target.value}))} className="w-full rounded border px-3 py-2">
-                    <option value="">-- wählen --</option>
-                    {filteredStorageModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                  </select>
+                  <Dropdown value={config.storageModel} onChange={e => setConfig(prev => ({...prev, storageModel: e.value}))} options={filteredStorageModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))} placeholder="-- wählen --" className="w-full" />
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Gewünschte Gesamtkapazität (kWh)</label>
-                  <input type="number" className="w-full rounded border px-3 py-2" min={0} value={config.storageDesiredKWh} onChange={e => setConfig(prev => ({...prev, storageDesiredKWh: parseFloat(e.target.value || '0')}))} />
-                </div>
-                <div className="rounded border bg-gray-50 p-3 text-sm col-span-2">
-                  <div className="text-gray-600">Kapazität Modell (kWh)</div>
-                  <div className="font-semibold text-lg">{storageModelKWh || 0}</div>
+                  <InputNumber value={config.storageDesiredKWh} onValueChange={e => setConfig(prev => ({...prev, storageDesiredKWh: e.value || 0}))} min={0} className="w-full" />
                 </div>
               </div>
             )}
@@ -568,10 +968,9 @@ export default function SolarCalculator(): JSX.Element {
           {/* Zusätzliche Komponenten aktivieren */}
           <div>
             <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={config.additionalComponents}
-                onChange={e => setConfig(prev => ({...prev, additionalComponents: e.target.checked}))}
+                onChange={e => setConfig(prev => ({...prev, additionalComponents: !!e.checked}))}
               />
               <span>Zusätzliche Komponenten hinzufügen</span>
             </label>
@@ -582,10 +981,9 @@ export default function SolarCalculator(): JSX.Element {
               {/* Wallbox */}
               <div className="border rounded p-4 space-y-3">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={config.wallboxEnabled}
-                    onChange={e => setConfig(prev => ({...prev, wallboxEnabled: e.target.checked}))}
+                    onChange={e => setConfig(prev => ({...prev, wallboxEnabled: !!e.checked}))}
                   />
                   <span className="font-medium">Wallbox</span>
                 </label>
@@ -593,25 +991,23 @@ export default function SolarCalculator(): JSX.Element {
                   <div className="grid gap-4 md:grid-cols-2 ml-6">
                     <div>
                       <label className="block text-sm mb-1">Hersteller</label>
-                      <select
+                      <Dropdown 
                         value={config.wallboxBrand}
-                        onChange={e => setConfig(prev => ({...prev, wallboxBrand: e.target.value, wallboxModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {wallboxBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, wallboxBrand: e.value, wallboxModel: ''}))}
+                        options={wallboxBrands.map(b => ({label: b, value: b}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Modell</label>
-                      <select
+                      <Dropdown 
                         value={config.wallboxModel}
-                        onChange={e => setConfig(prev => ({...prev, wallboxModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {wallboxModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, wallboxModel: e.value}))}
+                        options={wallboxModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}
@@ -620,10 +1016,9 @@ export default function SolarCalculator(): JSX.Element {
               {/* EMS */}
               <div className="border rounded p-4 space-y-3">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={config.emsEnabled}
-                    onChange={e => setConfig(prev => ({...prev, emsEnabled: e.target.checked}))}
+                    onChange={e => setConfig(prev => ({...prev, emsEnabled: !!e.checked}))}
                   />
                   <span className="font-medium">Energie Management System (EMS)</span>
                 </label>
@@ -631,25 +1026,23 @@ export default function SolarCalculator(): JSX.Element {
                   <div className="grid gap-4 md:grid-cols-2 ml-6">
                     <div>
                       <label className="block text-sm mb-1">Hersteller</label>
-                      <select
+                      <Dropdown 
                         value={config.emsBrand}
-                        onChange={e => setConfig(prev => ({...prev, emsBrand: e.target.value, emsModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emsBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, emsBrand: e.value, emsModel: ''}))}
+                        options={emsBrands.map(b => ({label: b, value: b}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Modell</label>
-                      <select
+                      <Dropdown 
                         value={config.emsModel}
-                        onChange={e => setConfig(prev => ({...prev, emsModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emsModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, emsModel: e.value}))}
+                        options={emsModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}
@@ -658,10 +1051,9 @@ export default function SolarCalculator(): JSX.Element {
               {/* Optimizer */}
               <div className="border rounded p-4 space-y-3">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={config.optimizerEnabled}
-                    onChange={e => setConfig(prev => ({...prev, optimizerEnabled: e.target.checked}))}
+                    onChange={e => setConfig(prev => ({...prev, optimizerEnabled: !!e.checked}))}
                   />
                   <span className="font-medium">Optimizer</span>
                 </label>
@@ -669,34 +1061,31 @@ export default function SolarCalculator(): JSX.Element {
                   <div className="grid gap-4 md:grid-cols-3 ml-6">
                     <div>
                       <label className="block text-sm mb-1">Hersteller</label>
-                      <select
+                      <Dropdown 
                         value={config.optimizerBrand}
-                        onChange={e => setConfig(prev => ({...prev, optimizerBrand: e.target.value, optimizerModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {optimizerBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, optimizerBrand: e.value, optimizerModel: ''}))}
+                        options={optimizerBrands.map(b => ({label: b, value: b}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Modell</label>
-                      <select
+                      <Dropdown 
                         value={config.optimizerModel}
-                        onChange={e => setConfig(prev => ({...prev, optimizerModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {optimizerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, optimizerModel: e.value}))}
+                        options={optimizerModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Anzahl</label>
-                      <input
-                        type="number"
+                      <InputNumber
                         value={config.optimizerQty}
-                        onChange={e => setConfig(prev => ({...prev, optimizerQty: parseInt(e.target.value || '0', 10)}))}
-                        className="w-full rounded border px-3 py-2"
-                        min="0"
+                        onValueChange={e => setConfig(prev => ({...prev, optimizerQty: e.value || 0}))}
+                        min={0}
+                        className="w-full"
                       />
                     </div>
                   </div>
@@ -706,10 +1095,9 @@ export default function SolarCalculator(): JSX.Element {
               {/* Carport */}
               <div className="border rounded p-4 space-y-3">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={config.carportEnabled}
-                    onChange={e => setConfig(prev => ({...prev, carportEnabled: e.target.checked}))}
+                    onChange={e => setConfig(prev => ({...prev, carportEnabled: !!e.checked}))}
                   />
                   <span className="font-medium">Carport</span>
                 </label>
@@ -717,25 +1105,23 @@ export default function SolarCalculator(): JSX.Element {
                   <div className="grid gap-4 md:grid-cols-2 ml-6">
                     <div>
                       <label className="block text-sm mb-1">Hersteller</label>
-                      <select
+                      <Dropdown 
                         value={config.carportBrand}
-                        onChange={e => setConfig(prev => ({...prev, carportBrand: e.target.value, carportModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {carportBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, carportBrand: e.value, carportModel: ''}))}
+                        options={carportBrands.map(b => ({label: b, value: b}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Modell</label>
-                      <select
+                      <Dropdown 
                         value={config.carportModel}
-                        onChange={e => setConfig(prev => ({...prev, carportModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {carportModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, carportModel: e.value}))}
+                        options={carportModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}
@@ -744,10 +1130,9 @@ export default function SolarCalculator(): JSX.Element {
               {/* Notstrom */}
               <div className="border rounded p-4 space-y-3">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={config.emergencyPowerEnabled}
-                    onChange={e => setConfig(prev => ({...prev, emergencyPowerEnabled: e.target.checked}))}
+                    onChange={e => setConfig(prev => ({...prev, emergencyPowerEnabled: !!e.checked}))}
                   />
                   <span className="font-medium">Notstrom</span>
                 </label>
@@ -755,25 +1140,23 @@ export default function SolarCalculator(): JSX.Element {
                   <div className="grid gap-4 md:grid-cols-2 ml-6">
                     <div>
                       <label className="block text-sm mb-1">Hersteller</label>
-                      <select
+                      <Dropdown 
                         value={config.emergencyPowerBrand}
-                        onChange={e => setConfig(prev => ({...prev, emergencyPowerBrand: e.target.value, emergencyPowerModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emergencyPowerBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, emergencyPowerBrand: e.value, emergencyPowerModel: ''}))}
+                        options={emergencyPowerBrands.map(b => ({label: b, value: b}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Modell</label>
-                      <select
+                      <Dropdown 
                         value={config.emergencyPowerModel}
-                        onChange={e => setConfig(prev => ({...prev, emergencyPowerModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {emergencyPowerModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, emergencyPowerModel: e.value}))}
+                        options={emergencyPowerModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}
@@ -782,10 +1165,9 @@ export default function SolarCalculator(): JSX.Element {
               {/* Tierabwehr */}
               <div className="border rounded p-4 space-y-3">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={config.animalProtectionEnabled}
-                    onChange={e => setConfig(prev => ({...prev, animalProtectionEnabled: e.target.checked}))}
+                    onChange={e => setConfig(prev => ({...prev, animalProtectionEnabled: !!e.checked}))}
                   />
                   <span className="font-medium">Tierabwehr</span>
                 </label>
@@ -793,25 +1175,23 @@ export default function SolarCalculator(): JSX.Element {
                   <div className="grid gap-4 md:grid-cols-2 ml-6">
                     <div>
                       <label className="block text-sm mb-1">Hersteller</label>
-                      <select
+                      <Dropdown 
                         value={config.animalProtectionBrand}
-                        onChange={e => setConfig(prev => ({...prev, animalProtectionBrand: e.target.value, animalProtectionModel: ''}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {animalProtectionBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, animalProtectionBrand: e.value, animalProtectionModel: ''}))}
+                        options={animalProtectionBrands.map(b => ({label: b, value: b}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Modell</label>
-                      <select
+                      <Dropdown 
                         value={config.animalProtectionModel}
-                        onChange={e => setConfig(prev => ({...prev, animalProtectionModel: e.target.value}))}
-                        className="w-full rounded border px-3 py-2"
-                      >
-                        <option value="">-- wählen --</option>
-                        {animalProtectionModels.map(m => <option key={m.id} value={m.produkt_modell}>{m.produkt_modell}</option>)}
-                      </select>
+                        onChange={e => setConfig(prev => ({...prev, animalProtectionModel: e.value}))}
+                        options={animalProtectionModels.map(m => ({label: m.produkt_modell, value: m.produkt_modell}))}
+                        placeholder="-- wählen --"
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}
@@ -822,12 +1202,12 @@ export default function SolarCalculator(): JSX.Element {
           {/* Freitext */}
           <div>
             <label className="block text-sm mb-1">Sonstiges (frei)</label>
-            <input
+            <InputText
               value={config.otherComponentNote}
               onChange={e => setConfig(prev => ({ ...prev, otherComponentNote: e.target.value }))}
               maxLength={120}
-              className="w-full rounded border px-3 py-2"
               placeholder="Freitext..."
+              className="w-full"
             />
           </div>
 

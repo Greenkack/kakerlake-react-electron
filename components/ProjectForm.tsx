@@ -1,5 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { 
+  Steps, Card, Panel, Button, InputText, InputNumber, Dropdown, 
+  Checkbox, DataTable, Column, Tag, Message, Tooltip, Divider,
+  ProgressBar, Fieldset, InputTextarea, RadioButton, Slider,
+  SelectButton, MultiSelect, AutoComplete, Calendar, FileUpload,
+  TabView, TabPanel, Accordion, AccordionTab, Splitter, SplitterPanel,
+  Toast, Dialog, ConfirmDialog, Sidebar, ScrollPanel, Chip,
+  Avatar, Badge, BlockUI, Skeleton, ProgressSpinner, InlineMessage,
+  Galleria, Image, Carousel, Timeline, Tree, Menu, Menubar,
+  ContextMenu, MegaMenu, PanelMenu, TieredMenu, BreadCrumb,
+  Paginator, DataView, VirtualScroller, PickList, OrderList,
+  OrganizationChart, TreeTable, ToggleButton, SplitButton,
+  SpeedDial, Knob, Rating, ColorPicker, CascadeSelect,
+  TriStateCheckbox, ListBox, InputMask, InputSwitch, Editor
+} from 'primereact/all';
+import 'primereact/resources/themes/saga-blue/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
 import { Project, Customer } from '../packages/core/src/types/db';
+
+// Product interfaces from Python logic
+interface Product {
+  id?: number;
+  category: string;
+  model_name: string;
+  brand: string;
+  price_euro: number;
+  capacity_w?: number;
+  storage_power_kw?: number;
+  power_kw?: number;
+  max_cycles?: number;
+  warranty_years?: number;
+  length_m?: number;
+  width_m?: number;
+  weight_kg?: number;
+  efficiency_percent?: number;
+  origin_country?: string;
+  description?: string;
+  pros?: string;
+  cons?: string;
+  rating?: number;
+  image_base64?: string;
+  additional_cost_netto?: number;
+}
+
+interface CalculationResults {
+  anlage_kwp: number;
+  total_inverter_power_kw: number;
+  base_matrix_price_netto: number;
+  total_investment_netto: number;
+  total_investment_brutto: number;
+  annual_pv_production_kwh: number;
+  einspeiseverguetung_total_euro: number;
+  final_price?: number;
+}
+
+interface ProjectDetails {
+  module_quantity: number;
+  selected_module_brand?: string;
+  selected_module_name?: string;
+  selected_module_id?: number;
+  selected_module_capacity_w: number;
+  anlage_kwp: number;
+  selected_inverter_brand?: string;
+  selected_inverter_name?: string;
+  selected_inverter_id?: number;
+  selected_inverter_quantity: number;
+  selected_inverter_power_kw_single: number;
+  selected_inverter_power_kw: number;
+  selected_inverter_power_w_total: number;
+  selected_inverter_power_w_single: number;
+  include_storage: boolean;
+  selected_storage_brand?: string;
+  selected_storage_name?: string;
+  selected_storage_id?: number;
+  selected_storage_storage_power_kw: number;
+}
 
 interface ProjectFormProps {
   project?: Partial<Project>;
@@ -10,7 +86,7 @@ interface ProjectFormProps {
   texts?: Record<string, string>;
 }
 
-export const ProjectForm: React.FC<ProjectFormProps> = ({
+export const ModernSolarCalculator: React.FC<ProjectFormProps> = ({
   project,
   customer,
   mode,
@@ -18,6 +94,50 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   onCancel,
   texts = {}
 }) => {
+  // Multi-step wizard state
+  const [activeStep, setActiveStep] = useState<number>(0);
+  const toast = useRef<Toast>(null);
+  
+  // Product data state
+  const [moduleProducts, setModuleProducts] = useState<Product[]>([]);
+  const [inverterProducts, setInverterProducts] = useState<Product[]>([]);
+  const [storageProducts, setStorageProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  
+  // Project details state (matching Python logic)
+  const [projectDetails, setProjectDetails] = useState<ProjectDetails>({
+    module_quantity: project?.module_quantity || 20,
+    selected_module_brand: undefined,
+    selected_module_name: undefined,
+    selected_module_id: project?.selected_module_id || undefined,
+    selected_module_capacity_w: 0,
+    anlage_kwp: 0,
+    selected_inverter_brand: undefined,
+    selected_inverter_name: undefined,
+    selected_inverter_id: project?.selected_inverter_id || undefined,
+    selected_inverter_quantity: 1,
+    selected_inverter_power_kw_single: 0,
+    selected_inverter_power_kw: 0,
+    selected_inverter_power_w_total: 0,
+    selected_inverter_power_w_single: 0,
+    include_storage: Boolean(project?.include_storage || false),
+    selected_storage_brand: undefined,
+    selected_storage_name: undefined,
+    selected_storage_id: project?.selected_storage_id || undefined,
+    selected_storage_storage_power_kw: project?.selected_storage_storage_power_kw || 5.0
+  });
+
+  // Calculation results
+  const [calculationResults, setCalculationResults] = useState<CalculationResults>({
+    anlage_kwp: 0,
+    total_inverter_power_kw: 0,
+    base_matrix_price_netto: 0,
+    total_investment_netto: 0,
+    total_investment_brutto: 0,
+    annual_pv_production_kwh: 0,
+    einspeiseverguetung_total_euro: 0
+  });
+
   const [formData, setFormData] = useState<Omit<Project, 'id'>>({
     customer_id: customer.id!,
     project_name: project?.project_name || '',
@@ -34,12 +154,12 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     costs_heating_euro_mo: project?.costs_heating_euro_mo || 0,
     anlage_type: project?.anlage_type || '',
     feed_in_type: project?.feed_in_type || '',
-    module_quantity: project?.module_quantity || 0,
-    selected_module_id: project?.selected_module_id || undefined,
-    selected_inverter_id: project?.selected_inverter_id || undefined,
-    include_storage: project?.include_storage || 0,
-    selected_storage_id: project?.selected_storage_id || undefined,
-    selected_storage_storage_power_kw: project?.selected_storage_storage_power_kw || 0,
+    module_quantity: projectDetails.module_quantity,
+    selected_module_id: projectDetails.selected_module_id,
+    selected_inverter_id: projectDetails.selected_inverter_id,
+    include_storage: projectDetails.include_storage ? 1 : 0,
+    selected_storage_id: projectDetails.selected_storage_id,
+    selected_storage_storage_power_kw: projectDetails.selected_storage_storage_power_kw,
     include_additional_components: project?.include_additional_components || 0,
     selected_wallbox_id: project?.selected_wallbox_id || undefined,
     selected_ems_id: project?.selected_ems_id || undefined,

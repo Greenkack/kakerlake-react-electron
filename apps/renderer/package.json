@@ -9,26 +9,26 @@
     "lint": "echo \"(optional)\""
   },
   "dependencies": {
-    "@kakerlake/core": "workspace:*",
-    "primeicons": "^7.0.0",
-    "primereact": "^10.9.7",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.8.2",
-    "scheduler": "^0.23.2",
-    "xlsx": "^0.18.5"
+    "primeicons": "7.0.0",
+    "primereact": "10.9.7",
+    "primeflex": "3.3.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.28.0",
+    "scheduler": "0.23.2",
+    "xlsx": "0.18.5"
   },
   "devDependencies": {
-    "@types/node": "^24.3.1",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@types/xlsx": "^0.0.36",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.41",
-    "rimraf": "^6.0.1",
-    "tailwindcss": "^3.4.10",
-    "typescript": "^5.5.4",
-    "vite": "^5.4.8"
+    "@types/node": "24.3.1",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@types/xlsx": "0.0.36",
+    "@vitejs/plugin-react": "4.3.1",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.41",
+    "rimraf": "6.0.1",
+    "tailwindcss": "3.4.10",
+    "typescript": "5.5.4",
+    "vite": "5.4.8"
   }
 }
