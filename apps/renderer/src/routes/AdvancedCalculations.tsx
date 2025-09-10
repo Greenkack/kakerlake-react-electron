@@ -2,10 +2,13 @@ import React from 'react';
 import PdfConfiguration from '../components/PdfConfiguration';
 import ScenarioCalculation from '../components/ScenarioCalculation';
 import { useDynamicData } from '../lib/dynamicDataSystem';
+import { WorkflowProvider, WorkflowProgress, WorkflowNavigation } from '../lib/workflowIntegration';
+import { ModernCard, ModernButton } from '../components/ModernUI_PrimeReact';
+import { ResponsiveGrid, ResponsiveContainer } from '../components/ResponsiveLayout_PrimeReact';
 
 const AdvancedCalculations: React.FC = () => {
   const { exportForPdf } = useDynamicData();
-  const [activeTab, setActiveTab] = React.useState<'scenarios' | 'pdf'>('scenarios');
+  const [activeTab, setActiveTab] = React.useState<'scenarios' | 'pdf' | 'workflow'>('scenarios');
 
   const handleScenarioChange = (scenarios: any[]) => {
     console.log('Szenarien aktualisiert:', scenarios);
@@ -54,6 +57,16 @@ const AdvancedCalculations: React.FC = () => {
               >
                 PDF-Konfiguration
               </button>
+              <button
+                onClick={() => setActiveTab('workflow')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'workflow'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Workflow Management
+              </button>
             </div>
           </div>
         </div>
@@ -70,6 +83,80 @@ const AdvancedCalculations: React.FC = () => {
             <div className="space-y-6">
               <PdfConfiguration onConfigChange={handlePdfConfigChange} />
             </div>
+          )}
+
+          {activeTab === 'workflow' && (
+            <WorkflowProvider workflowType="pv_project">
+              <ResponsiveContainer size="xl">
+                <ResponsiveGrid cols={1} gap="lg">
+                  
+                  {/* Workflow Progress */}
+                  <ModernCard 
+                    title="Projekt-Workflow" 
+                    subtitle="Verfolgen Sie den Fortschritt Ihres PV-Projekts"
+                    variant="elevated"
+                    size="lg"
+                  >
+                    <WorkflowProgress 
+                      orientation="horizontal"
+                      className="mb-6"
+                    />
+                    
+                    {/* Workflow Actions */}
+                    <div className="mt-6">
+                      <h3 className="text-lg font-semibold mb-3">Aktuelle Aufgaben</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <ModernCard variant="outlined" size="sm">
+                          <div className="flex items-center gap-3">
+                            <i className="pi pi-user text-blue-500 text-xl"></i>
+                            <div>
+                              <h4 className="font-medium">Kundendaten</h4>
+                              <p className="text-sm text-gray-600">Erfassen Sie die Kundeninformationen</p>
+                            </div>
+                          </div>
+                        </ModernCard>
+                        
+                        <ModernCard variant="outlined" size="sm">
+                          <div className="flex items-center gap-3">
+                            <i className="pi pi-home text-orange-500 text-xl"></i>
+                            <div>
+                              <h4 className="font-medium">Gebäudedaten</h4>
+                              <p className="text-sm text-gray-600">Analysieren Sie das Gebäude</p>
+                            </div>
+                          </div>
+                        </ModernCard>
+                        
+                        <ModernCard variant="outlined" size="sm">
+                          <div className="flex items-center gap-3">
+                            <i className="pi pi-bolt text-yellow-500 text-xl"></i>
+                            <div>
+                              <h4 className="font-medium">PV-Auslegung</h4>
+                              <p className="text-sm text-gray-600">Konfigurieren Sie die Anlage</p>
+                            </div>
+                          </div>
+                        </ModernCard>
+                        
+                        <ModernCard variant="outlined" size="sm">
+                          <div className="flex items-center gap-3">
+                            <i className="pi pi-file-pdf text-red-500 text-xl"></i>
+                            <div>
+                              <h4 className="font-medium">Angebot</h4>
+                              <p className="text-sm text-gray-600">Erstellen Sie das finale Angebot</p>
+                            </div>
+                          </div>
+                        </ModernCard>
+                      </div>
+                    </div>
+                  </ModernCard>
+                  
+                  {/* Workflow Navigation */}
+                  <ModernCard title="Navigation" variant="subtle" size="md">
+                    <WorkflowNavigation className="flex justify-between items-center" />
+                  </ModernCard>
+                  
+                </ResponsiveGrid>
+              </ResponsiveContainer>
+            </WorkflowProvider>
           )}
         </div>
 

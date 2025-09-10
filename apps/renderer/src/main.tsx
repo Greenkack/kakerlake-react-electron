@@ -19,6 +19,9 @@ import Results from "./routes/Results";
 import ModeSelect from "./routes/Project/ModeSelect";
 import AdvancedCalculations from "./routes/AdvancedCalculations";
 
+// Import PrimeReact Dashboard
+import PVOfferExample from "./components/PVOfferExample";
+
 // Modern home dashboard component
 const HomeComponent = () => (
   <div className="dashboard-grid">
@@ -407,6 +410,9 @@ function App() {
             <Route path="calc/heatpump" element={<ModernPageWrapper title="Wärmepumpen-Simulator" category="calc"><HeatpumpSimulator /></ModernPageWrapper>} />
             <Route path="calc/results" element={<ModernPageWrapper title="Ergebnisse & Dashboard" category="calc"><Results /></ModernPageWrapper>} />
             <Route path="calc/advanced" element={<AdvancedCalculations />} />
+            
+            {/* Modern Dashboard Route */}
+            <Route path="dashboard/modern" element={<PVOfferExample />} />
             
             {/* PDF Routes */}
             <Route path="pdf/standard" element={<PlaceholderPage title="Standard-PDF Erstellung" category="pdf" />} />

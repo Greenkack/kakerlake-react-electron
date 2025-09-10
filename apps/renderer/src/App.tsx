@@ -29,9 +29,15 @@ export default function App(): JSX.Element {
       icon: 'pi pi-fw pi-calculator',
       items: [
         { label: 'Solarkalkulator', url: '/calc/solar' },
+        { label: 'Erweiterte Berechnungen', url: '/calc/advanced' },
         { label: 'Wärmepumpen-Sim', url: '/calc/heatpump' },
         { label: 'Ergebnisse & Dashboard', url: '/calc/results' }
       ]
+    },
+    {
+      label: 'Modern Dashboard',
+      icon: 'pi pi-fw pi-th-large',
+      url: '/dashboard/modern'
     },
     {
       label: 'PDF-Hub',
