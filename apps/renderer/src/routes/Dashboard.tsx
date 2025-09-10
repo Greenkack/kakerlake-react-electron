@@ -1,6 +1,6 @@
 import React from "react";
-import ProjectDashboard from "../components/ProjectDashboard";
+import ProjectDashboard_PrimeReact from "../components/ProjectDashboard_PrimeReact";
 
 export default function Dashboard(): JSX.Element {
-  return <ProjectDashboard />;
+  return <ProjectDashboard_PrimeReact />;
 }

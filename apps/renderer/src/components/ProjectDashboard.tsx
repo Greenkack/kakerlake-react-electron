@@ -1,6 +1,16 @@
 import React, { useMemo } from 'react'
 import { useProject } from '../state/project'
 import { Link } from 'react-router-dom'
+import { Card } from 'primereact/card'
+import { Panel } from 'primereact/panel'
+import { Button } from 'primereact/button'
+import { ProgressBar } from 'primereact/progressbar'
+import { Badge } from 'primereact/badge'
+import { Chip } from 'primereact/chip'
+import { Divider } from 'primereact/divider'
+import { Tag } from 'primereact/tag'
+import { DataTable } from 'primereact/datatable'
+import { Column } from 'primereact/column'
 
 export default function ProjectDashboard(): JSX.Element {
   const { state } = useProject()
@@ -59,36 +69,47 @@ export default function ProjectDashboard(): JSX.Element {
   }, [customer, building, consumption, mode])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Willkommen Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl p-6">
-        <h1 className="text-2xl font-bold mb-2">
-          Willkommen bei der PV-Anlagenplanung! 🌞
-        </h1>
-        <p className="text-blue-100">
-          Erstellen Sie in wenigen Schritten ein individuelles Angebot für Ihre Photovoltaik-Anlage.
-        </p>
-      </div>
+      <Card className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-3 flex align-items-center justify-content-center gap-2">
+            <i className="pi pi-sun" />
+            Willkommen bei der PV-Anlagenplanung!
+          </h1>
+          <p className="text-blue-100 text-lg">
+            Erstellen Sie in wenigen Schritten ein individuelles Angebot für Ihre Photovoltaik-Anlage.
+          </p>
+        </div>
+      </Card>
 
       {/* Fortschrittsübersicht */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">📊 Projektstatus</h2>
-        
-        <div className="flex items-center mb-4">
-          <div className="flex-1">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-600">Fortschritt</span>
-              <span className="font-medium">{progress.completed}/{progress.total} Schritte</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-700"
-                style={{ width: `${progress.percentage}%` }}
+      <Card title="📊 Projektstatus" className="w-full">
+        <div className="flex align-items-center justify-content-between mb-4">
+          <div className="flex-1 mr-4">
+            <div className="flex justify-content-between text-sm mb-2">
+              <span className="text-600">Fortschritt</span>
+              <Chip 
+                label={`${progress.completed}/${progress.total} Schritte`}
+                className="p-chip-outlined"
               />
             </div>
+            <ProgressBar 
+              value={progress.percentage} 
+              className="h-3rem"
+              pt={{
+                value: { 
+                  className: progress.percentage === 100 ? 'bg-green-400' : 'bg-blue-400'
+                }
+              }}
+            />
           </div>
-          <div className="ml-4 text-2xl font-bold text-blue-600">
-            {progress.percentage}%
+          <div className="text-center">
+            <Badge 
+              value={`${progress.percentage}%`}
+              size="large" 
+              severity={progress.percentage === 100 ? "success" : progress.percentage >= 50 ? "info" : "warning"}
+            />
           </div>
         </div>
 
