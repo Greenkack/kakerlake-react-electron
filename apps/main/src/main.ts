@@ -6,6 +6,7 @@ import { getDb } from './db/connection';
 import { registerCrmHandlers } from './ipc/CrmHandlers';
 import { registerProductHandlers } from './ipc/ProductHandlers';
 import { registerPdfHandlers } from './ipc/PdfHandlers';
+import { CalculationHandlers } from './ipc/CalculationHandlers';
 
 // Global Node.js variables declaration for TypeScript
 declare const __dirname: string;
@@ -140,6 +141,13 @@ app.whenReady().then(() => {
 		console.log('PDF handlers registered successfully');
 	} catch (error) {
 		console.error('Failed to register PDF handlers:', error);
+	}
+	
+	try {
+		const calculationHandlers = new CalculationHandlers();
+		console.log('Calculation handlers registered successfully');
+	} catch (error) {
+		console.error('Failed to register Calculation handlers:', error);
 	}
 	
 	// Registriere die direkten IPC-Handler wieder

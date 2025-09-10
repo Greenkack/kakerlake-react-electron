@@ -1,0 +1,37 @@
+/* CalculationResults.css */
+.calculation-results .chart-container {
+  height: 400px;
+}
+
+.calculation-results .knob-container {
+  text-align: center;
+}
+
+.calculation-results .metric-card {
+  text-align: center;
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  background: var(--surface-card);
+}
+
+.calculation-results .cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.calculation-results .warning-message {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--border-radius);
+  background: #fef3cd;
+  border-left: 3px solid #ffc107;
+}
+
+.calculation-results .error-message {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--border-radius);
+  background: #f8d7da;
+  border-left: 3px solid #dc3545;
+}

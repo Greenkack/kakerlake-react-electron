@@ -141,9 +141,24 @@ const productAPI = {
 
 contextBridge.exposeInMainWorld('productAPI', productAPI);
 
+// Calculation API - Bridge to Python calculations
+const calculationAPI = {
+  performCalculations: (configuration: any) => 
+    ipcRenderer.invoke('calculation:perform-calculations', configuration),
+  livePricing: (baseResults: any, modifications: any) => 
+    ipcRenderer.invoke('calculation:live-pricing', baseResults, modifications),
+  validateConfiguration: (configuration: any) => 
+    ipcRenderer.invoke('calculation:validate-configuration', configuration),
+  quickEstimate: (basicParams: any) => 
+    ipcRenderer.invoke('calculation:quick-estimate', basicParams),
+};
+
+contextBridge.exposeInMainWorld('calculationAPI', calculationAPI);
+
 // Expose main API object
 contextBridge.exposeInMainWorld('api', {
   product: productAPI,
+  calculation: calculationAPI,
   // Add direct Python bridge functions
   importProductsFromFile: (payload: Record<string, unknown>) => 
     ipcRenderer.invoke('import:products_from_file', payload),
@@ -168,6 +183,7 @@ export type ImportAPI = typeof importAPI;
 export type ProductsAPI = typeof productsAPI;
 export type ProductAPI = typeof productAPI;
 export type SystemAPI = typeof systemAPI;
+export type CalculationAPI = typeof calculationAPI;
 
 // Global type declaration for window API
 declare global {
@@ -177,8 +193,10 @@ declare global {
     projectsAPI: ProjectsAPI;
     importAPI: ImportAPI;
     productsAPI: ProductsAPI;
+    calculationAPI: CalculationAPI;
     api: {
       product: ProductAPI;
+      calculation: CalculationAPI;
       importProductsFromFile: (payload: Record<string, unknown>) => Promise<any>;
     };
     systemAPI: SystemAPI;

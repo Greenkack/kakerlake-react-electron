@@ -10,6 +10,8 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { Checkbox } from 'primereact/checkbox';
 import { InputText } from 'primereact/inputtext';
+import CalculationResultsComponent, { CalculationResults } from '../components/CalculationResults';
+import CalculationDashboardComponent from '../components/CalculationDashboard';
 import { Divider } from 'primereact/divider';
 import { Panel } from 'primereact/panel';
 import { Badge } from 'primereact/badge';
@@ -167,6 +169,10 @@ export default function SolarCalculator(): JSX.Element {
     { label: 'Ergebnisse', icon: 'pi pi-chart-line' }
   ];
 
+  // Calculation State
+  const [calculationResults, setCalculationResults] = useState<CalculationResults | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
   // State für zusätzliche Komponenten
   const [wallboxProducts, setWallboxProducts] = useState<Product[]>([]);
   const [emsProducts, setEmsProducts] = useState<Product[]>([]);
@@ -243,6 +249,91 @@ export default function SolarCalculator(): JSX.Element {
     }
     return { moduleQty: 20, hint: 'Standard-Empfehlung für mittleres Einfamilienhaus' };
   }, [roofArea, roofOrientation, roofTilt]);
+
+  // Perform Calculations using IPC Bridge
+  const performCalculations = async () => {
+    setIsCalculating(true);
+    try {
+      // Convert configuration to calculation format
+      const selectedModule = moduleProducts.find(m => m.hersteller === config.moduleBrand && m.produkt_modell === config.moduleModel);
+      const selectedInverter = inverters.find(i => i.hersteller === config.invBrand && i.produkt_modell === config.invModel);
+      const selectedStorage = storages.find(s => s.hersteller === config.storageBrand && s.produkt_modell === config.storageModel);
+
+      if (!selectedModule) {
+        toast.current?.show({severity:'error', summary: 'Fehler', detail: 'Bitte wählen Sie ein Modul aus'});
+        return;
+      }
+
+      if (!selectedInverter) {
+        toast.current?.show({severity:'error', summary: 'Fehler', detail: 'Bitte wählen Sie einen Wechselrichter aus'});
+        return;
+      }
+
+      const calculationConfig = {
+        selectedModules: [{
+          id: selectedModule.id,
+          name: selectedModule.produkt_modell,
+          manufacturer: selectedModule.hersteller,
+          power_wp: selectedModule.pv_modul_leistung || 440,
+          price_netto: 300, // Mock price - later from real database
+          count: config.moduleQty
+        }],
+        selectedInverters: [{
+          id: selectedInverter.id,
+          name: selectedInverter.produkt_modell,
+          manufacturer: selectedInverter.hersteller,
+          power_kw: selectedInverter.wr_leistung_kw || 10,
+          price_netto: 2000, // Mock price
+          count: config.invQty
+        }],
+        selectedBatteries: config.withStorage && selectedStorage ? [{
+          id: selectedStorage.id,
+          name: selectedStorage.produkt_modell,
+          manufacturer: selectedStorage.hersteller,
+          capacity_kwh: selectedStorage.kapazitaet_speicher_kwh || 10,
+          price_netto: 8000, // Mock price
+          count: 1
+        }] : [],
+        additionalComponents: [],
+        locationData: {
+          city: 'Berlin', // Default or from project state
+          coordinates: { lat: 52.52, lng: 13.405 }
+        },
+        consumptionData: {
+          annual_consumption_kwh: 4000, // Default consumption
+          consumption_profile: 'residential'
+        },
+        technicalParams: {
+          roof_azimuth: 180, // South
+          roof_inclination: 35,
+          shading_factor: 1.0,
+          installation_type: 'roof'
+        }
+      };
+
+      // Call IPC calculation handler
+      const calculationAPI = (window as any).calculationAPI;
+      if (!calculationAPI) {
+        throw new Error('Calculation API not available');
+      }
+
+      const result = await calculationAPI.performCalculations(calculationConfig);
+
+      if (result.success) {
+        setCalculationResults(result.results);
+        setActiveStep(4); // Navigate to results step
+        toast.current?.show({severity:'success', summary: 'Erfolg', detail: 'Berechnungen abgeschlossen'});
+      } else {
+        throw new Error(result.error || 'Unknown calculation error');
+      }
+
+    } catch (error) {
+      console.error('Calculation error:', error);
+      toast.current?.show({severity:'error', summary: 'Berechnungsfehler', detail: error instanceof Error ? error.message : 'Unbekannter Fehler'});
+    } finally {
+      setIsCalculating(false);
+    }
+  };
 
   // Auto-Vorschlag beim ersten Laden
   useEffect(() => {
@@ -434,16 +525,11 @@ export default function SolarCalculator(): JSX.Element {
 
   async function finishAndBack() {
     try {
-      // Konfiguration via Electron Bridge speichern
-      const res = (window as any).solarAPI
-        ? await (window as any).solarAPI.saveConfiguration(config)
-        : { success: false };
-      if (!res?.success) throw new Error('Fehler beim Speichern der Konfiguration');
-      console.log('Solar Configuration gespeichert:', config);
-      navigate('/results'); // Zu Ergebnissen navigieren
+      // Start calculations instead of navigating away
+      await performCalculations();
     } catch (error) {
-      console.error('Speicherfehler:', error);
-      alert('Konfiguration konnte nicht gespeichert werden');
+      console.error('Calculation error:', error);
+      toast.current?.show({severity:'error', summary: 'Fehler', detail: 'Berechnungen konnten nicht gestartet werden'});
     }
   }
 
@@ -682,49 +768,102 @@ export default function SolarCalculator(): JSX.Element {
   );
 
   const renderResultsStep = () => (
-    <Card title="📊 Konfigurationsergebnisse">
-      <TabView>
-        <TabPanel header="📋 Zusammenfassung">
-          <div className="grid">
-            <div className="col-12 md:col-6">
-              <Panel header="PV-Module">
-                <p><strong>Anzahl:</strong> {config.moduleQty}</p>
-                <p><strong>Hersteller:</strong> {config.moduleBrand}</p>
-                <p><strong>Modell:</strong> {config.moduleModel}</p>
-              </Panel>
+    <div>
+      {/* Configuration Summary Header */}
+      <Card title="� Anlagenkonfiguration" className="mb-4">
+        <div className="grid">
+          <div className="col-12 md:col-4">
+            <Panel header="⚡ PV-Module" className="h-full">
+              <div className="flex flex-column gap-2">
+                <Badge value={`${config.moduleQty} Stück`} severity="info" size="large" />
+                <p className="m-0"><strong>Hersteller:</strong> {config.moduleBrand}</p>
+                <p className="m-0"><strong>Modell:</strong> {config.moduleModel}</p>
+              </div>
+            </Panel>
+          </div>
+          <div className="col-12 md:col-4">
+            <Panel header="🔄 Wechselrichter" className="h-full">
+              <div className="flex flex-column gap-2">
+                <Badge value={`${config.invQty} Stück`} severity="warning" size="large" />
+                <p className="m-0"><strong>Hersteller:</strong> {config.invBrand}</p>
+                <p className="m-0"><strong>Modell:</strong> {config.invModel}</p>
+              </div>
+            </Panel>
+          </div>
+          <div className="col-12 md:col-4">
+            <Panel header="🔋 Speicher" className="h-full">
+              {config.withStorage ? (
+                <div className="flex flex-column gap-2">
+                  <Badge value={`${config.storageDesiredKWh} kWh`} severity="success" size="large" />
+                  <p className="m-0"><strong>Hersteller:</strong> {config.storageBrand}</p>
+                  <p className="m-0"><strong>Modell:</strong> {config.storageModel}</p>
+                </div>
+              ) : (
+                <Message severity="info" text="Kein Speicher konfiguriert" />
+              )}
+            </Panel>
+          </div>
+        </div>
+      </Card>
+
+      {/* Calculation Results */}
+      {calculationResults ? (
+        <CalculationResultsComponent 
+          results={calculationResults}
+          isLoading={isCalculating}
+          onRecalculate={performCalculations}
+        />
+      ) : (
+        <Card title="� Berechnungen starten">
+          <div className="text-center p-6">
+            <div className="mb-4">
+              <i className="pi pi-calculator text-6xl text-primary"></i>
             </div>
-            <div className="col-12 md:col-6">
-              <Panel header="Wechselrichter">
-                <p><strong>Anzahl:</strong> {config.invQty}</p>
-                <p><strong>Hersteller:</strong> {config.invBrand}</p>
-                <p><strong>Modell:</strong> {config.invModel}</p>
-              </Panel>
+            <h3>Bereit für die Berechnung</h3>
+            <p className="text-600 mb-4">
+              Ihre Anlagenkonfiguration ist vollständig. Starten Sie jetzt die detaillierte Berechnung 
+              mit Ertrag, Kosten und Amortisation.
+            </p>
+            <Button 
+              label={isCalculating ? "Berechnung läuft..." : "Berechnungen starten"}
+              icon={isCalculating ? "pi pi-spin pi-spinner" : "pi pi-play"}
+              size="large"
+              severity="success"
+              onClick={performCalculations}
+              loading={isCalculating}
+              disabled={isCalculating}
+              className="mb-2"
+            />
+            <div className="text-sm text-500">
+              Die Berechnung dauert ca. 10-30 Sekunden
             </div>
           </div>
-          
-          {config.withStorage && (
-            <Panel header="Batteriespeicher" className="mt-3">
-              <p><strong>Hersteller:</strong> {config.storageBrand}</p>
-              <p><strong>Modell:</strong> {config.storageModel}</p>
-              <p><strong>Kapazität:</strong> {config.storageDesiredKWh} kWh</p>
-            </Panel>
+        </Card>
+      )}
+
+      {/* Action Buttons */}
+      <Card className="mt-4">
+        <div className="flex justify-content-between">
+          <Button 
+            label="Zurück zur Konfiguration"
+            icon="pi pi-arrow-left"
+            className="p-button-outlined"
+            onClick={() => setActiveStep(3)}
+          />
+          {calculationResults && (
+            <Button 
+              label="PDF erstellen"
+              icon="pi pi-file-pdf"
+              severity="success"
+              onClick={() => {
+                // TODO: Implement PDF generation
+                toast.current?.show({severity:'info', summary: 'PDF', detail: 'PDF-Erstellung wird implementiert...'});
+              }}
+            />
           )}
-        </TabPanel>
-        
-        <TabPanel header="💰 Berechnungen">
-          <Message severity="info" text="Berechnungen werden hier angezeigt..." />
-        </TabPanel>
-      </TabView>
-      
-      <div className="text-center mt-4">
-        <Button 
-          label="Konfiguration speichern & beenden"
-          icon="pi pi-save"
-          size="large"
-          onClick={finishAndBack}
-        />
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 
   const renderStepContent = () => {
