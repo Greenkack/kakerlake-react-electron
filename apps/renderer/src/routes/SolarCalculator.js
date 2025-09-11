@@ -22,122 +22,215 @@ import 'primereact/resources/themes/saga-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
-// Mock-Ladefunktion – jetzt mit echter Database Bridge
+// Database-Integration für Produktliste
 function useProducts() {
-    const [data, setData] = useState({ modules: [], inverters: [], storages: [] });
+    const [data, setData] = useState({ 
+        modules: [], 
+        inverters: [], 
+        storages: [],
+        wallboxes: [],
+        emsSystems: [],
+        optimizers: [],
+        backupPower: [],
+        animalProtection: []
+    });
     const [loaded, setLoaded] = useState(false);
+
     useEffect(() => {
         let cancelled = false;
-        async function loadReal() {
+
+        const loadProducts = async () => {
             try {
-                // Use database API for real product data
-                const databaseAPI = window.databaseAPI;
-                if (!databaseAPI) {
-                    console.warn('Database API not available');
+                console.log('🚀 DEBUG: SolarCalculator - Starting product load');
+                const dbAPI = window.databaseAPI;
+                console.log('🔍 DEBUG: Database API available?', !!dbAPI);
+                
+                if (!dbAPI) {
+                    console.error('❌ Database API not available!');
+                    alert('Database API nicht verfügbar! Bitte starten Sie die App neu.');
                     setLoaded(true);
                     return;
                 }
-                // Load products by category from database
-                const [moduleResults, inverterResults, storageResults] = await Promise.all([
-                    databaseAPI.listProducts('Modul'),
-                    databaseAPI.listProducts('Wechselrichter'),
-                    databaseAPI.listProducts('Batteriespeicher'),
-                ]);
-                if (cancelled)
-                    return;
-                const modules = (moduleResults?.data || []).map((m) => ({
-                    id: String(m.id),
-                    kategorie: m.category || 'Modul',
-                    hersteller: m.brand || '',
-                    produkt_modell: m.model_name || '',
-                    pv_modul_leistung: m.capacity_w || 0,
-                }));
-                const inverters = (inverterResults?.data || []).map((m) => ({
-                    id: String(m.id),
-                    kategorie: m.category || 'Wechselrichter',
-                    hersteller: m.brand || '',
-                    produkt_modell: m.model_name || '',
-                    wr_leistung_kw: m.power_kw || 0,
-                }));
-                const storages = (storageResults?.data || []).map((m) => ({
-                    id: String(m.id),
-                    kategorie: m.category || 'Batteriespeicher',
-                    hersteller: m.brand || '',
-                    produkt_modell: m.model_name || '',
-                    kapazitaet_speicher_kwh: m.storage_power_kw || 0,
-                }));
-                setData({ modules, inverters, storages });
-                setLoaded(true);
-                console.log('Database products loaded:', {
+
+                // Module laden - WICHTIG: Kategorie muss genau "modul" sein (kleingeschrieben!)
+                console.log('📦 Loading modules with category: "modul"');
+                const modulesResult = await dbAPI.listProducts('modul');
+                console.log('✅ Modules loaded:', modulesResult);
+                
+                // Wechselrichter laden - WICHTIG: "Wechselrichter" mit großem W!
+                console.log('📦 Loading inverters with category: "Wechselrichter"');
+                const invertersResult = await dbAPI.listProducts('Wechselrichter');
+                console.log('✅ Inverters loaded:', invertersResult);
+                
+                // Batteriespeicher laden
+                console.log('📦 Loading batteries with category: "Batteriespeicher"');
+                const batteriesResult = await dbAPI.listProducts('Batteriespeicher');
+                console.log('✅ Batteries loaded:', batteriesResult);
+                
+                // Wallbox laden
+                console.log('📦 Loading wallboxes with category: "Wallbox"');
+                const wallboxResult = await dbAPI.listProducts('Wallbox');
+                console.log('✅ Wallboxes loaded:', wallboxResult);
+                
+                // Energiemanagementsystem laden
+                console.log('📦 Loading EMS with category: "Energiemanagementsystem"');
+                const emsResult = await dbAPI.listProducts('Energiemanagementsystem');
+                console.log('✅ EMS loaded:', emsResult);
+                
+                // Leistungsoptimierer laden
+                console.log('📦 Loading optimizers with category: "Leistungsoptimierer"');
+                const optimizerResult = await dbAPI.listProducts('Leistungsoptimierer');
+                console.log('✅ Optimizers loaded:', optimizerResult);
+                
+                // Notstromversorgung laden
+                console.log('📦 Loading backup power with category: "Notstromversorgung"');
+                const backupResult = await dbAPI.listProducts('Notstromversorgung');
+                console.log('✅ Backup power loaded:', backupResult);
+                
+                // Tierabwehrschutz laden
+                console.log('📦 Loading animal protection with category: "Tierabwehrschutz"');
+                const animalResult = await dbAPI.listProducts('Tierabwehrschutz');
+                console.log('✅ Animal protection loaded:', animalResult);
+
+                if (cancelled) return;
+
+                // Daten verarbeiten und in State setzen
+                const processProducts = (result) => {
+                    if (Array.isArray(result)) return result;
+                    if (result?.data && Array.isArray(result.data)) return result.data;
+                    if (result?.success && result?.data) return result.data;
+                    return [];
+                };
+
+                const modules = processProducts(modulesResult);
+                const inverters = processProducts(invertersResult);
+                const batteries = processProducts(batteriesResult);
+                const wallboxes = processProducts(wallboxResult);
+                const emsSystems = processProducts(emsResult);
+                const optimizers = processProducts(optimizerResult);
+                const backupPower = processProducts(backupResult);
+                const animalProtection = processProducts(animalResult);
+
+                console.log('📊 Final product counts:', {
                     modules: modules.length,
                     inverters: inverters.length,
-                    storages: storages.length
+                    batteries: batteries.length,
+                    wallboxes: wallboxes.length,
+                    emsSystems: emsSystems.length,
+                    optimizers: optimizers.length,
+                    backupPower: backupPower.length,
+                    animalProtection: animalProtection.length
                 });
-            }
-            catch (e) {
-                console.error('Database loading failed, using fallback', e);
-                // Fallback to solar API
-                try {
-                    const api = window.solarAPI;
-                    if (!api) {
-                        setLoaded(true);
-                        return;
-                    }
-                    // Lade alle Hersteller und deren Modelle
-                    const [pvBrands, invBrands, storBrands] = await Promise.all([
-                        api.getPVManufacturers(),
-                        api.getInverterManufacturers(),
-                        api.getStorageManufacturers(),
-                    ]);
-                    const [pvModelsArr, invModelsArr, storModelsArr] = await Promise.all([
-                        Promise.all((pvBrands || []).map((b) => api.getPVModelsByManufacturer(b))),
-                        Promise.all((invBrands || []).map((b) => api.getInverterModelsByManufacturer(b))),
-                        Promise.all((storBrands || []).map((b) => api.getStorageModelsByManufacturer(b))),
-                    ]);
-                    if (cancelled)
-                        return;
-                    const pvModels = pvModelsArr.flat();
-                    const invModels = invModelsArr.flat();
-                    const stModels = storModelsArr.flat();
-                    setData({
-                        modules: (pvModels || []).map((m) => ({
-                            id: String(m.id),
-                            kategorie: m.kategorie,
-                            hersteller: m.hersteller,
-                            produkt_modell: m.produkt_modell,
-                            pv_modul_leistung: m.pv_modul_leistung,
-                        })),
-                        inverters: (invModels || []).map((m) => ({
-                            id: String(m.id),
-                            kategorie: m.kategorie,
-                            hersteller: m.hersteller,
-                            produkt_modell: m.produkt_modell,
-                            wr_leistung_kw: m.wr_leistung_kw,
-                        })),
-                        storages: (stModels || []).map((m) => ({
-                            id: String(m.id),
-                            kategorie: m.kategorie,
-                            hersteller: m.hersteller,
-                            produkt_modell: m.produkt_modell,
-                            kapazitaet_speicher_kwh: m.kapazitaet_speicher_kwh,
-                        })),
-                    });
-                }
-                catch (fallbackError) {
-                    console.error('Both database and solar API failed', fallbackError);
-                }
+
+                // Daten für Dropdowns formatieren
+                setData({
+                    modules: (modules || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'modul',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        pv_modul_leistung: m.capacity_w,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years,
+                        efficiency_percent: m.efficiency_percent
+                    })),
+                    inverters: (inverters || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Wechselrichter',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        wr_leistung_kw: m.power_kw,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years,
+                        efficiency_percent: m.efficiency_percent
+                    })),
+                    storages: (batteries || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Batteriespeicher',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        speicher_kapazitaet_kwh: m.storage_power_kw,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years,
+                        max_cycles: m.max_cycles
+                    })),
+                    wallboxes: (wallboxes || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Wallbox',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        power_kw: m.power_kw,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years
+                    })),
+                    emsSystems: (emsSystems || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Energiemanagementsystem',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years
+                    })),
+                    optimizers: (optimizers || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Leistungsoptimierer',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years
+                    })),
+                    backupPower: (backupPower || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Notstromversorgung',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years
+                    })),
+                    animalProtection: (animalProtection || []).map((m) => ({
+                        id: String(m.id),
+                        kategorie: m.category || 'Tierabwehrschutz',
+                        hersteller: m.brand || m.manufacturer,
+                        produkt_modell: m.model_name,
+                        price_euro: m.price_euro,
+                        warranty_years: m.warranty_years
+                    }))
+                });
+
+                console.log('✅ DEBUG: All products loaded successfully');
+                setLoaded(true);
+
+            } catch (error) {
+                console.error('❌ CRITICAL ERROR loading products:', error);
+                console.error('Stack:', error instanceof Error ? error.stack : 'No stack');
+                // NICHT stillschweigend fehlschlagen - User informieren!
+                alert(`Fehler beim Laden der Produkte: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+                
+                // Fallback mit leeren Daten
+                setData({
+                    modules: [],
+                    inverters: [],
+                    storages: [],
+                    wallboxes: [],
+                    emsSystems: [],
+                    optimizers: [],
+                    backupPower: [],
+                    animalProtection: []
+                });
                 setLoaded(true);
             }
-        }
-        loadReal();
+        };
+
+        loadProducts();
         return () => { cancelled = true; };
     }, []);
+
     return { ...data, loaded };
 }
 export default function SolarCalculator() {
     const navigate = useNavigate();
     const { state: projectState } = useProject();
-    const { modules: moduleProducts, inverters, storages } = useProducts();
+    const { modules: moduleProducts, inverters, storages, wallboxes, emsSystems, optimizers, backupPower, animalProtection } = useProducts();
     const toast = useRef(null);
     // Wizard Steps
     const [activeStep, setActiveStep] = useState(0);
@@ -285,8 +378,16 @@ export default function SolarCalculator() {
             const result = await calculationAPI.performCalculations(calculationConfig);
             if (result.success) {
                 setCalculationResults(result.results);
-                setActiveStep(4); // Navigate to results step
                 toast.current?.show({ severity: 'success', summary: 'Erfolg', detail: 'Berechnungen abgeschlossen' });
+                
+                // Navigate to Results page with calculation data
+                console.log('🎯 DEBUG: Navigating to Results page with:', result.results);
+                navigate('/results', { 
+                    state: { 
+                        results: result.results,
+                        configuration: config 
+                    } 
+                });
             }
             else {
                 throw new Error(result.error || 'Unknown calculation error');
