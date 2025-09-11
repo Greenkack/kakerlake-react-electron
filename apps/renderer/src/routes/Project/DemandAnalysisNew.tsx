@@ -570,6 +570,8 @@ export default function DemandAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={currentHeatingType} 
               onChange={(e) => setCurrentHeatingType(e.target.value)}
+              aria-label="Heizungstyp auswählen"
+              title="Heizungstyp auswählen"
             >
               <option value="">Bitte wählen</option>
               <option value="gas">Gasheizung</option>

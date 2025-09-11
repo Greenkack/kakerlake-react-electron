@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { formatGermanNumber, formatGermanCurrency } from '../../utils/germanFormat'
 
+// Extended Database Management with full CRUD functionality
+declare global {
+  interface Window {
+    databaseAPI: any;
+  }
+}
+
 interface DatabaseInfo {
   name: string
   size: string
@@ -17,6 +24,22 @@ interface TableInfo {
   size: string
   lastModified: string
   description: string
+  category: 'products' | 'customers' | 'projects' | 'system'
+}
+
+interface Product {
+  id?: number;
+  category: string;
+  model_name: string;
+  brand?: string;
+  price_euro?: number;
+  price_netto?: number;
+  capacity_w?: number;
+  power_kw?: number;
+  storage_power_kw?: number;
+  warranty_years?: number;
+  efficiency_percent?: number;
+  description?: string;
 }
 
 interface BackupInfo {
@@ -29,10 +52,10 @@ interface BackupInfo {
 }
 
 const mockDatabaseInfo: DatabaseInfo = {
-  name: 'solar_app.db',
-  size: '24,8 MB',
-  lastBackup: '2024-03-15 14:30:00',
-  recordCount: 1847,
+  name: 'app_data.db',
+  size: '34,2 MB',
+  lastBackup: '2024-09-11 14:30:00',
+  recordCount: 2847,
   status: 'healthy'
 }
 
@@ -43,7 +66,8 @@ const mockTables: TableInfo[] = [
     recordCount: 245,
     size: '2,1 MB',
     lastModified: '2024-03-15 10:45:00',
-    description: 'Kundendaten und Kontaktinformationen'
+    description: 'Kundendaten und Kontaktinformationen',
+    category: 'customers'
   },
   {
     name: 'projects',
@@ -51,7 +75,8 @@ const mockTables: TableInfo[] = [
     recordCount: 189,
     size: '4,3 MB',
     lastModified: '2024-03-15 09:30:00',
-    description: 'PV-Projekte und Konfigurationen'
+    description: 'PV-Projekte und Konfigurationen',
+    category: 'projects'
   },
   {
     name: 'products',
@@ -59,7 +84,8 @@ const mockTables: TableInfo[] = [
     recordCount: 342,
     size: '1,8 MB',
     lastModified: '2024-03-14 16:20:00',
-    description: 'Produktkatalog mit Preisen'
+    description: 'Produktkatalog mit Preisen',
+    category: 'products'
   },
   {
     name: 'offers',
@@ -67,7 +93,8 @@ const mockTables: TableInfo[] = [
     recordCount: 156,
     size: '3,2 MB',
     lastModified: '2024-03-15 11:15:00',
-    description: 'Generierte Angebote und PDFs'
+    description: 'Generierte Angebote und PDFs',
+    category: 'projects'
   },
   {
     name: 'price_matrix',
@@ -75,7 +102,8 @@ const mockTables: TableInfo[] = [
     recordCount: 28,
     size: '0,9 MB',
     lastModified: '2024-03-10 14:00:00',
-    description: 'Aktuelle Preisstrukturen'
+    description: 'Aktuelle Preisstrukturen',
+    category: 'system'
   },
   {
     name: 'system_settings',
@@ -83,7 +111,8 @@ const mockTables: TableInfo[] = [
     recordCount: 42,
     size: '0,3 MB',
     lastModified: '2024-03-15 12:00:00',
-    description: 'Konfigurationsparameter'
+    description: 'Konfigurationsparameter',
+    category: 'system'
   }
 ]
 
@@ -507,7 +536,7 @@ export default function DatabaseManagement() {
                         <div className="text-sm text-slate-600">Jeden Tag um 02:00 Uhr</div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" defaultChecked className="sr-only peer" />
+                        <input type="checkbox" defaultChecked className="sr-only peer" aria-label="Tägliche Optimierung aktivieren" />
                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
@@ -529,7 +558,7 @@ export default function DatabaseManagement() {
                         <div className="text-sm text-slate-600">Jeden 1. des Monats um 04:00 Uhr</div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
+                        <input type="checkbox" className="sr-only peer" aria-label="Monatliche Integritätsprüfung aktivieren" />
                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
@@ -696,6 +725,7 @@ export default function DatabaseManagement() {
                               reader.readAsDataURL(file)
                             }}
                             className="mb-2"
+                            aria-label="Produktbild auswählen"
                           />
                           <p className="text-sm text-slate-600">JPG, PNG, WebP (max 2MB)</p>
                           {manualProduct.image_base64 && <p className="text-xs text-green-600 mt-1">✓ Bild geladen</p>}

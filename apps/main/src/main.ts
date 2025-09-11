@@ -23,10 +23,24 @@ function runPy(...args: string[]): Promise<string> {
 		'get_animal_protection_manufacturers', 'get_animal_protection_models', 'perform_calculations'
 	];
 	
+	// Database commands for database_bridge.py
+	const databaseCommands = [
+		'list_products', 'add_product', 'update_product', 'delete_product', 'get_product_by_id',
+		'get_product_by_model', 'list_categories', 'list_manufacturers', 'get_products_by_manufacturer',
+		'list_brand_logos', 'add_brand_logo', 'get_brand_logo', 'delete_brand_logo', 'init_database'
+	];
+	
 	const isSolarCommand = args.length > 0 && solarCommands.includes(args[0]);
-	const script = isSolarCommand 
-		? path.resolve(__dirname, 'solar_calculation_bridge.py')  // Comprehensive solar script
-		: path.resolve(process.cwd(), '..', '..', 'calculation_bridge.py');  // Original fallback
+	const isDatabaseCommand = args.length > 0 && databaseCommands.includes(args[0]);
+	
+	let script: string;
+	if (isSolarCommand) {
+		script = path.resolve(__dirname, 'solar_calculation_bridge.py');  // Comprehensive solar script
+	} else if (isDatabaseCommand) {
+		script = path.resolve(__dirname, 'database_bridge.py');  // Database operations script
+	} else {
+		script = path.resolve(process.cwd(), '..', '..', 'calculation_bridge.py');  // Original fallback
+	}
 		
 	const isWin = process.platform === 'win32';
 	const candidates: Array<[string, string[]]> = isWin
@@ -194,6 +208,69 @@ app.whenReady().then(() => {
 		ipcMain.handle('import:products_from_file', async (_e, payload: Record<string, unknown>) => {
 			const json = JSON.stringify(payload);
 			return JSON.parse(await runPy('import_products_from_file', json));
+		});
+		
+		// Database Bridge handlers - Product operations
+		ipcMain.handle('database:list_products', async (_e, category?: string) => {
+			if (category) {
+				return JSON.parse(await runPy('list_products', `--category=${category}`));
+			}
+			return JSON.parse(await runPy('list_products'));
+		});
+		
+		ipcMain.handle('database:add_product', async (_e, productData: Record<string, unknown>) => {
+			const json = JSON.stringify(productData);
+			return JSON.parse(await runPy('add_product', `--data=${json}`));
+		});
+		
+		ipcMain.handle('database:update_product', async (_e, id: number, productData: Record<string, unknown>) => {
+			const json = JSON.stringify(productData);
+			return JSON.parse(await runPy('update_product', `--id=${id}`, `--data=${json}`));
+		});
+		
+		ipcMain.handle('database:delete_product', async (_e, id: number) => {
+			return JSON.parse(await runPy('delete_product', `--id=${id}`));
+		});
+		
+		ipcMain.handle('database:get_product_by_id', async (_e, id: number) => {
+			return JSON.parse(await runPy('get_product_by_id', `--id=${id}`));
+		});
+		
+		ipcMain.handle('database:get_product_by_model', async (_e, modelName: string) => {
+			return JSON.parse(await runPy('get_product_by_model', `--model=${modelName}`));
+		});
+		
+		ipcMain.handle('database:list_categories', async () => {
+			return JSON.parse(await runPy('list_categories'));
+		});
+		
+		ipcMain.handle('database:list_manufacturers', async () => {
+			return JSON.parse(await runPy('list_manufacturers'));
+		});
+		
+		ipcMain.handle('database:get_products_by_manufacturer', async (_e, manufacturer: string) => {
+			return JSON.parse(await runPy('get_products_by_manufacturer', `--manufacturer=${manufacturer}`));
+		});
+		
+		// Database Bridge handlers - Brand logo operations
+		ipcMain.handle('database:list_brand_logos', async () => {
+			return JSON.parse(await runPy('list_brand_logos'));
+		});
+		
+		ipcMain.handle('database:add_brand_logo', async (_e, brand: string, logoBase64: string, format: string = 'PNG') => {
+			return JSON.parse(await runPy('add_brand_logo', `--brand=${brand}`, `--logo_base64=${logoBase64}`, `--format=${format}`));
+		});
+		
+		ipcMain.handle('database:get_brand_logo', async (_e, brand: string) => {
+			return JSON.parse(await runPy('get_brand_logo', `--brand=${brand}`));
+		});
+		
+		ipcMain.handle('database:delete_brand_logo', async (_e, brand: string) => {
+			return JSON.parse(await runPy('delete_brand_logo', `--brand=${brand}`));
+		});
+		
+		ipcMain.handle('database:init_database', async () => {
+			return JSON.parse(await runPy('init_database'));
 		});
 		
 		ipcMain.handle('products:add_single', async (_e, payload: Record<string, unknown>) => {

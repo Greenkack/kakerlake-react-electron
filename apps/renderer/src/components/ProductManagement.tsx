@@ -1,23 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import './ProductManagement.css';
-/**
- * Local type definitions to avoid importing types from the external core package
- * (the external module path '../../../../core/src/types/db' is not available in this project/tsconfig).
- */
-
-declare global {
-  interface Window {
-    api: any;
-  }
-}
-type ProductCategory = 'Modul' | 'Wechselrichter' | 'Batteriespeicher' | 'Wallbox' | 'Zubehör' | 'Sonstiges';
+import React, { useState, useEffect, useRef } from 'react';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Card } from 'primereact/card';
+import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
+import { Toolbar } from 'primereact/toolbar';
+import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
+import { Dialog } from 'primereact/dialog';
+import { InputNumber } from 'primereact/inputnumber';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { FileUpload } from 'primereact/fileupload';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import { Tag } from 'primereact/tag';
+import { Image } from 'primereact/image';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 
 interface Product {
   id?: number;
-  created_at?: string | null;
-  updated_at?: string | null;
-  category: ProductCategory;
-  model_name: string;
+  category?: string;
+  model_name?: string;
   brand?: string;
   price_euro?: number;
   capacity_w?: number | null;
@@ -44,33 +46,29 @@ interface Product {
   version?: string;
   module_warranty_text?: string;
   labor_hours?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ProductFormData extends Omit<Product, 'id' | 'created_at' | 'updated_at'> {
   id?: number;
 }
 
-const PRODUCT_CATEGORIES: ProductCategory[] = [
-  'Modul',
-  'Wechselrichter', 
-  'Batteriespeicher',
-  'Wallbox',
-  'Zubehör',
-  'Sonstiges'
-];
-
-const ProductManagement: React.FC = () => {
+const ProductManagementFull: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductFormData | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('Alle Kategorien');
-  const [searchText, setSearchText] = useState('');
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(10);
+  
+  const toast = useRef<Toast>(null);
 
   // Form state
   const [formData, setFormData] = useState<ProductFormData>({
-    category: 'Modul',
+    category: 'modul',
     model_name: '',
     brand: '',
     price_euro: 0,
@@ -100,141 +98,345 @@ const ProductManagement: React.FC = () => {
     labor_hours: null
   });
 
-  const loadProducts = useCallback(async (category?: string) => {
+  // Categories matching database exactly
+  const categories = [
+    { label: 'Alle Kategorien', value: '' },
+    { label: 'Modul', value: 'modul' },
+    { label: 'Wechselrichter', value: 'Wechselrichter' },
+    { label: 'Batteriespeicher', value: 'Batteriespeicher' },
+    { label: 'Wallbox', value: 'Wallbox' },
+    { label: 'Carport', value: 'Carport' },
+    { label: 'Energiemanagementsystem', value: 'Energiemanagementsystem' },
+    { label: 'Leistungsoptimierer', value: 'Leistungsoptimierer' },
+    { label: 'Notstromversorgung', value: 'Notstromversorgung' },
+    { label: 'Tierabwehrschutz', value: 'Tierabwehrschutz' },
+    { label: 'Extrakosten', value: 'Extrakosten' }
+  ];
+
+  // Load products from database with comprehensive debugging
+  const loadProducts = async (category?: string) => {
+    console.log('🚀 DEBUG: loadProducts started', { category });
     setLoading(true);
+    
     try {
-      const result = await window.api.product.listProducts(category || null);
-      setProducts(result);
+      console.log('🔍 DEBUG: Checking window.databaseAPI...');
+      const databaseAPI = (window as any).databaseAPI;
+      
+      if (!databaseAPI) {
+        console.error('❌ DEBUG: Database API not available on window');
+        console.log('📋 DEBUG: Available window properties:', Object.keys(window));
+        throw new Error('Database API not available');
+      }
+      
+      console.log('✅ DEBUG: Database API found:', databaseAPI);
+      console.log('📋 DEBUG: databaseAPI methods:', Object.keys(databaseAPI));
+      
+      if (!databaseAPI.listProducts) {
+        console.error('❌ DEBUG: listProducts method not found');
+        throw new Error('listProducts method not available');
+      }
+      
+      console.log('🔄 DEBUG: Calling databaseAPI.listProducts with category:', category || null);
+      const result = await databaseAPI.listProducts(category || null);
+      console.log('📦 DEBUG: Raw result from database:', result);
+      console.log('📊 DEBUG: Result type:', typeof result);
+      console.log('📊 DEBUG: Is array?', Array.isArray(result));
+      
+      // Handle both direct array response and wrapped response
+      if (Array.isArray(result)) {
+        console.log('✅ DEBUG: Direct array response with', result.length, 'items');
+        console.log('📋 DEBUG: First item sample:', result[0]);
+        setProducts(result);
+        toast.current?.show({
+          severity: 'success',
+          summary: 'Erfolgreich',
+          detail: `${result.length} Produkte geladen (Direct Array)`
+        });
+      } else if (result?.success) {
+        console.log('✅ DEBUG: Wrapped response with success=true');
+        console.log('📦 DEBUG: result.data:', result.data);
+        console.log('📊 DEBUG: result.data length:', result.data?.length);
+        if (result.data && result.data.length > 0) {
+          console.log('📋 DEBUG: First data item sample:', result.data[0]);
+        }
+        setProducts(result.data || []);
+        toast.current?.show({
+          severity: 'success',
+          summary: 'Erfolgreich',
+          detail: `${result.data?.length || 0} Produkte geladen (Wrapped Response)`
+        });
+      } else {
+        console.error('❌ DEBUG: Unexpected result format:', result);
+        console.log('📊 DEBUG: result.success:', result?.success);
+        console.log('📊 DEBUG: result.error:', result?.error);
+        throw new Error(result?.error || 'Failed to load products');
+      }
+      
+      console.log('✅ DEBUG: loadProducts completed successfully');
     } catch (error) {
-      console.error('Failed to load products:', error);
+      console.error('❌ DEBUG: Exception in loadProducts:', error);
+      console.error('📊 DEBUG: Error type:', typeof error);
+      console.error('📊 DEBUG: Error constructor:', error?.constructor?.name);
+      console.error('📊 DEBUG: Error stack:', error instanceof Error ? error.stack : 'No stack');
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: `Fehler beim Laden der Produkte: ${errorMessage}`
+      });
     } finally {
+      console.log('🏁 DEBUG: loadProducts finally block, setting loading=false');
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
+    console.log('🎯 DEBUG: useEffect triggered - Initial load');
+    console.log('📊 DEBUG: Component mounted, starting initial product load');
     loadProducts();
-  }, [loadProducts]);
+  }, []);
 
+  // Handle category filter change with debugging
+  const handleCategoryChange = (category: string) => {
+    console.log('🔄 DEBUG: Category filter changed to:', category);
+    setSelectedCategory(category);
+    console.log('🔄 DEBUG: Loading products for category:', category || 'ALL');
+    loadProducts(category || undefined);
+  };
+
+  // Form handling
   const handleFormChange = (field: keyof ProductFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleImageUpload = async (file: File) => {
+  const handleImageUpload = (event: any) => {
+    const files = event.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
     if (file.size > 2 * 1024 * 1024) {
-      alert('Datei zu groß! Maximum 2MB');
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Datei zu groß! Maximum 2MB'
+      });
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      // Remove data:image/...;base64, prefix
       const base64Data = base64.split(',')[1];
       handleFormChange('image_base64', base64Data);
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Erfolgreich',
+        detail: 'Bild hochgeladen'
+      });
     };
     reader.readAsDataURL(file);
   };
 
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
-    
+  // File upload for bulk import
+  const handleFileUpload = async (event: any, isDryRun: boolean = false) => {
+    const files = event.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
     setLoading(true);
+
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Prepare for bulk import
       const fileBuffer = await file.arrayBuffer();
-      const result = await window.api.product.bulkImportProducts({
+      const uint8Array = new Uint8Array(fileBuffer);
+      
+      const result = await (window as any).databaseAPI?.importProductsFromFile?.({
         filename: file.name,
-        data: Array.from(new Uint8Array(fileBuffer)),
-        type: file.name.endsWith('.xlsx') ? 'xlsx' : 'csv'
+        data: Array.from(uint8Array),
+        file_extension: file.name.split('.').pop()?.toLowerCase(),
+        dry_run: isDryRun
       });
       
-      if (result.success) {
-        alert(`Import erfolgreich! ${result.imported} neue Produkte, ${result.updated} aktualisiert, ${result.skipped} übersprungen`);
-        await loadProducts();
-        setUploadFile(null);
+      if (result?.success) {
+        const message = isDryRun 
+          ? `Probelauf abgeschlossen: ${(result.created || 0) + (result.updated || 0)} Produkte würden verarbeitet`
+          : `Import erfolgreich! ${result.created || 0} neue, ${result.updated || 0} aktualisiert`;
+        
+        toast.current?.show({
+          severity: 'success',
+          summary: isDryRun ? 'Probelauf' : 'Import',
+          detail: message
+        });
+        
+        if (!isDryRun) {
+          await loadProducts();
+        }
       } else {
-        alert(`Import Fehler: ${result.message || 'Unbekannter Fehler'}`);
+        throw new Error(result?.error || 'Unbekannter Fehler');
       }
     } catch (error) {
       console.error('File upload failed:', error);
-      alert('Datei-Upload fehlgeschlagen');
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: `${isDryRun ? 'Probelauf' : 'Import'} fehlgeschlagen: ${error}`
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  // CRUD operations with comprehensive debugging
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('📝 DEBUG: Form submit started');
+    console.log('📋 DEBUG: Form data:', formData);
+    console.log('📋 DEBUG: Editing product:', editingProduct);
     
-    if (!formData.model_name.trim() || !formData.category) {
-      alert('Modellname und Kategorie sind Pflichtfelder!');
+    if (!formData.model_name?.trim() || !formData.category) {
+      console.warn('⚠️ DEBUG: Validation failed - missing required fields');
+      console.log('📊 DEBUG: model_name:', formData.model_name);
+      console.log('📊 DEBUG: category:', formData.category);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Modellname und Kategorie sind Pflichtfelder!'
+      });
       return;
     }
 
     setLoading(true);
     try {
-      if (editingProduct?.id) {
-        // Update existing product
-        const success = await window.api.product.updateProduct(editingProduct.id, formData);
-        if (success) {
-          alert('Produkt erfolgreich aktualisiert!');
-        } else {
-          alert('Fehler beim Aktualisieren des Produkts');
-        }
-      } else {
-        // Add new product
-        const id = await window.api.product.addProduct(formData);
-        if (id) {
-          alert('Produkt erfolgreich hinzugefügt!');
-        } else {
-          alert('Fehler beim Hinzufügen des Produkts');
-        }
+      console.log('🔍 DEBUG: Checking database API...');
+      const databaseAPI = (window as any).databaseAPI;
+      if (!databaseAPI) {
+        console.error('❌ DEBUG: Database API not available in submit');
+        throw new Error('Database API not available');
       }
       
-      // Reset form and reload
-      resetForm();
-      await loadProducts();
+      console.log('✅ DEBUG: Database API found, proceeding with operation');
+
+      let result;
+      if (editingProduct?.id) {
+        console.log('🔄 DEBUG: Updating existing product with ID:', editingProduct.id);
+        if (!databaseAPI.updateProduct) {
+          console.error('❌ DEBUG: updateProduct method not found');
+          throw new Error('updateProduct method not available');
+        }
+        result = await databaseAPI.updateProduct(editingProduct.id, formData);
+        console.log('📦 DEBUG: Update result:', result);
+      } else {
+        console.log('➕ DEBUG: Adding new product');
+        if (!databaseAPI.addProduct) {
+          console.error('❌ DEBUG: addProduct method not found');
+          throw new Error('addProduct method not available');
+        }
+        result = await databaseAPI.addProduct(formData);
+        console.log('📦 DEBUG: Add result:', result);
+      }
+      
+      if (result?.success || result) {
+        console.log('✅ DEBUG: Operation successful');
+        toast.current?.show({
+          severity: 'success',
+          summary: 'Erfolgreich',
+          detail: editingProduct?.id ? 'Produkt aktualisiert' : 'Produkt hinzugefügt'
+        });
+        console.log('🔄 DEBUG: Resetting form and reloading products');
+        resetForm();
+        await loadProducts();
+      } else {
+        console.error('❌ DEBUG: Operation failed with result:', result);
+        throw new Error('Operation failed');
+      }
     } catch (error) {
-      console.error('Submit failed:', error);
-      alert('Fehler beim Speichern des Produkts');
+      console.error('❌ DEBUG: Exception in handleSubmit:', error);
+      console.error('📊 DEBUG: Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack : 'No stack'
+      });
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Fehler beim Speichern des Produkts'
+      });
     } finally {
+      console.log('🏁 DEBUG: handleSubmit finally block');
       setLoading(false);
     }
   };
 
   const handleEdit = (product: Product) => {
+    console.log('✏️ DEBUG: Edit product triggered for:', product);
+    console.log('📋 DEBUG: Product ID:', product.id);
     setEditingProduct(product);
     setFormData({ ...product });
     setIsFormOpen(true);
+    console.log('✅ DEBUG: Edit form opened');
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Produkt wirklich löschen?')) return;
-    
-    setLoading(true);
-    try {
-      const success = await window.api.product.deleteProduct(id);
-      if (success) {
-        alert('Produkt erfolgreich gelöscht!');
-        await loadProducts();
-      } else {
-        alert('Fehler beim Löschen des Produkts');
+  const handleDelete = (id: number) => {
+    console.log('🗑️ DEBUG: Delete confirmation for product ID:', id);
+    confirmDialog({
+      message: 'Möchten Sie dieses Produkt wirklich löschen?',
+      header: 'Bestätigung',
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        console.log('✅ DEBUG: Delete confirmed, proceeding...');
+        setLoading(true);
+        try {
+          console.log('🔍 DEBUG: Checking database API for delete...');
+          const databaseAPI = (window as any).databaseAPI;
+          if (!databaseAPI) {
+            console.error('❌ DEBUG: Database API not available for delete');
+            throw new Error('Database API not available');
+          }
+          
+          if (!databaseAPI.deleteProduct) {
+            console.error('❌ DEBUG: deleteProduct method not found');
+            throw new Error('deleteProduct method not available');
+          }
+
+          console.log('🔄 DEBUG: Calling deleteProduct with ID:', id);
+          const result = await databaseAPI.deleteProduct(id);
+          console.log('📦 DEBUG: Delete result:', result);
+          
+          if (result?.success || result) {
+            console.log('✅ DEBUG: Delete successful');
+            toast.current?.show({
+              severity: 'success',
+              summary: 'Erfolgreich',
+              detail: 'Produkt gelöscht'
+            });
+            console.log('🔄 DEBUG: Reloading products after delete');
+            await loadProducts();
+          } else {
+            console.error('❌ DEBUG: Delete failed with result:', result);
+            throw new Error('Delete failed');
+          }
+        } catch (error) {
+          console.error('❌ DEBUG: Exception in delete operation:', error);
+          console.error('📊 DEBUG: Delete error details:', {
+            message: error instanceof Error ? error.message : 'Unknown',
+            stack: error instanceof Error ? error.stack : 'No stack'
+          });
+          toast.current?.show({
+            severity: 'error',
+            summary: 'Fehler',
+            detail: 'Fehler beim Löschen des Produkts'
+          });
+        } finally {
+          console.log('🏁 DEBUG: Delete operation finally block');
+          setLoading(false);
+        }
       }
-    } catch (error) {
-      console.error('Delete failed:', error);
-      alert('Fehler beim Löschen des Produkts');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const resetForm = () => {
+    console.log('🔄 DEBUG: Resetting form');
     setFormData({
-      category: 'Modul',
+      category: 'modul',
       model_name: '',
       brand: '',
       price_euro: 0,
@@ -265,461 +467,401 @@ const ProductManagement: React.FC = () => {
     });
     setEditingProduct(null);
     setIsFormOpen(false);
+    console.log('✅ DEBUG: Form reset completed');
   };
 
-  // Filter products
-  const filteredProducts = products.filter(product => {
-    const matchesCategory = filterCategory === 'Alle Kategorien' || product.category === filterCategory;
-    const matchesSearch = !searchText.trim() || 
-      product.model_name?.toLowerCase().includes(searchText.toLowerCase()) ||
-      product.brand?.toLowerCase().includes(searchText.toLowerCase());
-    
-    return matchesCategory && matchesSearch;
-  });
+  // Column templates
+  const categoryBodyTemplate = (rowData: Product) => {
+    return <Tag value={rowData.category} severity="info" />;
+  };
 
-  // Parse German number format (handle comma as decimal separator)
-  const parseGermanNumber = (value: string): number | null => {
-    if (!value) return null;
-    
-    // Remove thousands separators (dots) and replace decimal comma with dot
-    let cleaned = value.toString();
-    if (cleaned.includes('.') && cleaned.includes(',')) {
-      // If both exist, dots are thousands separators
-      cleaned = cleaned.replace(/\./g, '');
+  const priceBodyTemplate = (rowData: Product) => {
+    return rowData.price_euro ? `€${rowData.price_euro.toFixed(2)}` : '-';
+  };
+
+  const capacityBodyTemplate = (rowData: Product) => {
+    if (rowData.capacity_w) return `${rowData.capacity_w}W`;
+    if (rowData.power_kw) return `${rowData.power_kw}kW`;
+    if (rowData.storage_power_kw) return `${rowData.storage_power_kw}kWh`;
+    return '-';
+  };
+
+  const imageBodyTemplate = (rowData: Product) => {
+    if (rowData.image_base64) {
+      return (
+        <Image 
+          src={`data:image/png;base64,${rowData.image_base64}`}
+          alt={rowData.model_name}
+          width="50"
+          height="50"
+          preview
+        />
+      );
     }
-    cleaned = cleaned.replace(',', '.');
-    
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? null : parsed;
+    return <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+      <i className="pi pi-image text-gray-400"></i>
+    </div>;
   };
+
+  const actionBodyTemplate = (rowData: Product) => {
+    return (
+      <div className="flex gap-2">
+        <Button
+          icon="pi pi-pencil"
+          className="p-button-rounded p-button-success p-button-sm"
+          onClick={() => handleEdit(rowData)}
+          tooltip="Bearbeiten"
+        />
+        <Button
+          icon="pi pi-trash"
+          className="p-button-rounded p-button-danger p-button-sm"
+          onClick={() => handleDelete(rowData.id!)}
+          tooltip="Löschen"
+        />
+      </div>
+    );
+  };
+
+  // Toolbar content
+  const startContent = (
+    <div className="flex align-items-center gap-2">
+      <Button
+        label="Neues Produkt"
+        icon="pi pi-plus"
+        onClick={() => {
+          resetForm();
+          setIsFormOpen(true);
+        }}
+        className="p-button-success"
+      />
+      <Button
+        label="Aktualisieren"
+        icon="pi pi-refresh"
+        onClick={() => loadProducts()}
+        className="p-button-info"
+      />
+    </div>
+  );
+
+  const endContent = (
+    <div className="flex align-items-center gap-3">
+      <Dropdown
+        value={selectedCategory}
+        options={categories}
+        onChange={(e) => handleCategoryChange(e.value)}
+        placeholder="Kategorie wählen"
+        className="w-200px"
+      />
+      <span className="p-input-icon-left">
+        <i className="pi pi-search" />
+        <InputText
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          placeholder="Suchen..."
+        />
+      </span>
+    </div>
+  );
+
+  // Debug logging
+  console.log('🎨 DEBUG: ProductManagement render started');
+  console.log('📊 DEBUG: Current state:', {
+    productsCount: products.length,
+    loading,
+    selectedCategory,
+    isFormOpen,
+    editingProductId: editingProduct?.id
+  });
+  console.log('📊 DEBUG: About to render DataTable with products:', products);
+  console.log('📊 DEBUG: Products array length:', products.length);
+  if (products.length > 0) {
+    console.log('📋 DEBUG: First product sample:', products[0]);
+  }
 
   return (
-    <div className="product-management">
-      <h2>Produktverwaltung</h2>
-      {/* Bulk Upload Section */}
-      <div className="upload-section">
-        <h3>Produktdatenbank hochladen (Excel/CSV)</h3>
-        <p>Laden Sie eine Excel (.xlsx) oder CSV (.csv) Datei mit Produktdaten hoch. Pflichtfelder: model_name, category</p>
-        
-        <label htmlFor="file-upload" className="sr-only">Produktdatei auswählen</label>
-        <input
-          id="file-upload"
-          type="file"
-          accept=".xlsx,.csv"
-          onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-          className="file-input"
-          title="Excel- oder CSV-Datei mit Produktdaten auswählen"
-        />
-        
-        <button 
-          onClick={() => uploadFile && handleFileUpload(uploadFile)}
-          disabled={!uploadFile || loading}
-          className="btn btn-primary"
-        >
-          {loading ? 'Verarbeite...' : 'Datei verarbeiten'}
-      {/* Manual Product Form */}
-      <div className="form-toggle">
-        <button 
-          onClick={() => setIsFormOpen(!isFormOpen)}
-          className="btn btn-success"
-        >
-          {isFormOpen ? 'Formular schließen' : 'Neues Produkt manuell anlegen'}
-        </button>
-      </div>
-        >
-          {isFormOpen ? 'Formular schließen' : 'Neues Produkt manuell anlegen'}
-        <form onSubmit={handleSubmit} className="product-form">
-          <h3>{editingProduct ? `Produkt bearbeiten: ${editingProduct.model_name}` : 'Neues Produkt anlegen'}</h3>
+    <div className="p-4">
+      <Toast ref={toast} />
+      <ConfirmDialog />
+      
+      <Card title="Produktverwaltung - VOLLSTÄNDIG MIT CRUD" className="shadow-lg">
+        <div className="mb-4">
+          {/* Debug Info Panel */}
+          <Card title="🐛 DEBUG INFORMATION" className="mb-4 bg-yellow-50">
+            <div className="text-sm">
+              <p><strong>Produkte geladen:</strong> {products.length}</p>
+              <p><strong>Loading:</strong> {loading ? 'JA' : 'NEIN'}</p>
+              <p><strong>Kategorie-Filter:</strong> {selectedCategory || 'ALLE'}</p>
+              <p><strong>Form offen:</strong> {isFormOpen ? 'JA' : 'NEIN'}</p>
+              <p><strong>Bearbeitung:</strong> {editingProduct?.id ? `ID ${editingProduct.id}` : 'KEINE'}</p>
+              <p><strong>Database API verfügbar:</strong> {(window as any).databaseAPI ? 'JA' : 'NEIN'}</p>
+              {(window as any).databaseAPI && (
+                <p><strong>API Methoden:</strong> {Object.keys((window as any).databaseAPI).join(', ')}</p>
+              )}
+            </div>
+          </Card>
           
-          <div className="form-grid">
-        <form onSubmit={handleSubmit} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
-            <div>
-              <label htmlFor="model-name">Modellname *</label>
-              <input
-                id="model-name"
-                type="text"
-                value={formData.model_name}
-                onChange={(e) => handleFormChange('model_name', e.target.value)}
-                required
-                className="form-input"
-                placeholder="Produktmodell eingeben"
-                title="Name des Produktmodells"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="category">Kategorie *</label>
-              <select
-                id="category"
-                value={formData.category}
-                onChange={(e) => handleFormChange('category', e.target.value)}
-                required
-                className="form-select"
-                title="Produktkategorie auswählen"
-              >
-                {PRODUCT_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label>Hersteller</label>
-              <input
-                type="text"
-                value={formData.brand || ''}
-                onChange={(e) => handleFormChange('brand', e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Preis (€)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.price_euro || 0}
-                onChange={(e) => handleFormChange('price_euro', parseFloat(e.target.value) || 0)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Zusatzkosten Netto (€)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.additional_cost_netto || 0}
-                onChange={(e) => handleFormChange('additional_cost_netto', parseFloat(e.target.value) || 0)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Garantie (Jahre)</label>
-              <input
-                type="number"
-                value={formData.warranty_years || 0}
-                onChange={(e) => handleFormChange('warranty_years', parseInt(e.target.value) || 0)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            {/* Category-specific fields */}
-            {formData.category === 'Modul' && (
-              <>
-                <div>
-                  <label>Kapazität (W)</label>
-                  <input
-                    type="number"
-                    value={formData.capacity_w || ''}
-                    onChange={(e) => handleFormChange('capacity_w', parseFloat(e.target.value) || null)}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label>Effizienz (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.efficiency_percent || ''}
-                    onChange={(e) => handleFormChange('efficiency_percent', parseFloat(e.target.value) || null)}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label>Zelltechnologie</label>
-                  <input
-                    type="text"
-                    value={formData.cell_technology || ''}
-                    onChange={(e) => handleFormChange('cell_technology', e.target.value)}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label>Modulstruktur</label>
-                  <input
-                    type="text"
-                    value={formData.module_structure || ''}
-                    onChange={(e) => handleFormChange('module_structure', e.target.value)}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
-                </div>
-              </>
-            )}
-
-            {formData.category === 'Batteriespeicher' && (
-              <>
-                <div>
-                  <label>Speicher-Leistung (kW)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.storage_power_kw || ''}
-                    onChange={(e) => handleFormChange('storage_power_kw', parseFloat(e.target.value) || null)}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label>Max. Zyklen</label>
-                  <input
-                    type="number"
-                    value={formData.max_cycles || ''}
-                    onChange={(e) => handleFormChange('max_cycles', parseInt(e.target.value) || null)}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
-                </div>
-              </>
-            )}
-
-            {(formData.category === 'Wechselrichter' || formData.category === 'Wallbox') && (
+          {/* File Upload Section */}
+          <Card title="📂 Bulk-Import (Excel/CSV)" className="mb-4 bg-blue-50">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label>Leistung (kW)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={formData.power_kw || ''}
-                  onChange={(e) => handleFormChange('power_kw', parseFloat(e.target.value) || null)}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                />
-              </div>
-            )}
-
-            <div>
-              <label>Länge (m)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.length_m || ''}
-                onChange={(e) => handleFormChange('length_m', parseFloat(e.target.value) || null)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Breite (m)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.width_m || ''}
-                onChange={(e) => handleFormChange('width_m', parseFloat(e.target.value) || null)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Gewicht (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={formData.weight_kg || ''}
-                onChange={(e) => handleFormChange('weight_kg', parseFloat(e.target.value) || null)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Herkunftsland</label>
-              <input
-                type="text"
-                value={formData.origin_country || ''}
-                onChange={(e) => handleFormChange('origin_country', e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-          </div>
-
-          {/* Text areas */}
-          <div style={{ marginBottom: '15px' }}>
-            <label>Beschreibung</label>
-            <textarea
-              value={formData.description || ''}
-              onChange={(e) => handleFormChange('description', e.target.value)}
-              rows={3}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-            <div>
-              <label>Vorteile</label>
-              <textarea
-                value={formData.pros || ''}
-                onChange={(e) => handleFormChange('pros', e.target.value)}
-                rows={3}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-
-            <div>
-              <label>Nachteile</label>
-              <textarea
-                value={formData.cons || ''}
-                onChange={(e) => handleFormChange('cons', e.target.value)}
-                rows={3}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            </div>
-          </div>
-
-          {/* Image upload */}
-          <div style={{ marginBottom: '15px' }}>
-            <label>Produktbild (PNG, JPG, max. 2MB)</label>
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file);
-              }}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-            />
-            {formData.image_base64 && (
-              <div style={{ marginTop: '10px' }}>
-                <img 
-                  src={`data:image/jpeg;base64,${formData.image_base64}`}
-                  alt="Product preview"
-                  style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'contain' }}
-                />
-                <p style={{ fontSize: '12px', color: '#666' }}>
-                  Bildgröße: {formData.image_base64.length} Zeichen (Base64)
+                <h5>🚀 Daten-Import</h5>
+                <p className="text-sm text-gray-600 mb-3">
+                  Laden Sie Excel (.xlsx) oder CSV-Dateien hoch. Pflichtfelder: model_name, category
                 </p>
+                <FileUpload
+                  mode="basic"
+                  name="products"
+                  accept=".xlsx,.csv"
+                  chooseLabel="📄 Datei wählen"
+                  onUpload={(e) => handleFileUpload(e, false)}
+                  customUpload
+                  auto={false}
+                />
               </div>
-            )}
-          </div>
+              <div>
+                <h5>🧪 Probelauf</h5>
+                <p className="text-sm text-gray-600 mb-3">
+                  Testen Sie den Import ohne Änderungen zu speichern
+                </p>
+                <FileUpload
+                  mode="basic"
+                  name="products-dry"
+                  accept=".xlsx,.csv"
+                  chooseLabel="🔍 Probelauf starten"
+                  onUpload={(e) => handleFileUpload(e, true)}
+                  customUpload
+                  auto={false}
+                />
+              </div>
+            </div>
+          </Card>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              type="submit"
-              disabled={loading}
-              style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}
-            >
-              {loading ? 'Speichere...' : (editingProduct ? 'Aktualisieren' : 'Hinzufügen')}
-            </button>
-            
-            <button 
-              type="button"
-              onClick={resetForm}
-              style={{ padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}
-            >
-              Abbrechen
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Filter and Search */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '15px', alignItems: 'center' }}>
-        <div>
-          <label>Kategorie: </label>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-          >
-            <option value="Alle Kategorien">Alle Kategorien</option>
-            {PRODUCT_CATEGORIES.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+          <Toolbar start={startContent} end={endContent} className="mb-4" />
         </div>
 
-        <div>
-          <label>Suche: </label>
-          <input
-            type="text"
-            placeholder="Modell/Hersteller suchen..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', minWidth: '200px' }}
-          />
-        </div>
-
-        <button 
-          onClick={() => loadProducts()}
-          disabled={loading}
-          style={{ padding: '8px 15px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px' }}
-        >
-          {loading ? 'Lade...' : 'Aktualisieren'}
-        </button>
-      </div>
-
-      {/* Products Table */}
-      <div>
-        <h3>Produkte ({filteredProducts.length})</h3>
-        {filteredProducts.length === 0 ? (
-          <p>Keine Produkte gefunden.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8f9fa' }}>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>ID</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Kategorie</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Modell</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Hersteller</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Preis (€)</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Garantie</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Aktionen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((product) => (
-                  <tr key={product.id}>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{product.id}</td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{product.category}</td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {product.image_base64 && (
-                          <img 
-                            src={`data:image/jpeg;base64,${product.image_base64}`}
-                            alt={product.model_name}
-                            style={{ width: '40px', height: '40px', objectFit: 'contain' }}
-                          />
-                        )}
-                        {product.model_name}
-                      </div>
-                    </td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{product.brand}</td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                      {(product.price_euro || 0).toFixed(2)}€
-                    </td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                      {product.warranty_years || 0} Jahre
-                    </td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button 
-                          onClick={() => handleEdit(product)}
-                          style={{ padding: '5px 10px', backgroundColor: '#ffc107', color: 'black', border: 'none', borderRadius: '3px', fontSize: '12px' }}
-                        >
-                          Bearbeiten
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(product.id!)}
-                          style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '3px', fontSize: '12px' }}
-                        >
-                          Löschen
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {loading && (
+          <div className="flex justify-center p-4">
+            <ProgressSpinner />
           </div>
         )}
-      </div>
+
+        <DataTable
+          value={products}
+          paginator
+          rows={rows}
+          rowsPerPageOptions={[10, 25, 50]}
+          globalFilter={globalFilter}
+          first={first}
+          onPage={(e) => {
+            setFirst(e.first);
+            setRows(e.rows);
+          }}
+          className="p-datatable-sm"
+          stripedRows
+          showGridlines
+          responsiveLayout="scroll"
+          emptyMessage="❌ Keine Produkte gefunden"
+        >
+          <Column field="id" header="ID" sortable style={{ width: '80px' }} />
+          <Column field="category" header="Kategorie" body={categoryBodyTemplate} sortable />
+          <Column field="model_name" header="Modell" sortable />
+          <Column field="brand" header="Hersteller" sortable />
+          <Column field="price_euro" header="Preis" body={priceBodyTemplate} sortable />
+          <Column header="Kapazität" body={capacityBodyTemplate} />
+          <Column header="Bild" body={imageBodyTemplate} style={{ width: '100px' }} />
+          <Column body={actionBodyTemplate} header="🔧 Aktionen" style={{ width: '120px' }} />
+        </DataTable>
+      </Card>
+
+      {/* Product Form Dialog */}
+      <Dialog
+        visible={isFormOpen}
+        style={{ width: '50vw' }}
+        header={editingProduct?.id ? '✏️ Produkt bearbeiten' : '➕ Neues Produkt'}
+        modal
+        onHide={resetForm}
+        footer={
+          <div>
+            <Button
+              label="❌ Abbrechen"
+              icon="pi pi-times"
+              onClick={resetForm}
+              className="p-button-text"
+            />
+            <Button
+              label="💾 Speichern"
+              icon="pi pi-check"
+              onClick={handleSubmit}
+              loading={loading}
+            />
+          </div>
+        }
+      >
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Basic Information */}
+          <div className="col-span-2">
+            <h4>📋 Grunddaten</h4>
+          </div>
+          
+          <div className="field">
+            <label htmlFor="category">Kategorie *</label>
+            <Dropdown
+              id="category"
+              value={formData.category}
+              options={categories.filter(c => c.value)}
+              onChange={(e) => handleFormChange('category', e.value)}
+              placeholder="Kategorie wählen"
+              className="w-full"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="model_name">Modellname *</label>
+            <InputText
+              id="model_name"
+              value={formData.model_name || ''}
+              onChange={(e) => handleFormChange('model_name', e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="brand">Hersteller</label>
+            <InputText
+              id="brand"
+              value={formData.brand || ''}
+              onChange={(e) => handleFormChange('brand', e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="price_euro">Preis (€)</label>
+            <InputNumber
+              id="price_euro"
+              value={formData.price_euro}
+              onValueChange={(e) => handleFormChange('price_euro', e.value)}
+              mode="currency"
+              currency="EUR"
+              locale="de-DE"
+              className="w-full"
+            />
+          </div>
+
+          {/* Technical Specifications */}
+          <div className="col-span-2">
+            <h4>⚡ Technische Daten</h4>
+          </div>
+
+          <div className="field">
+            <label htmlFor="capacity_w">Kapazität (W)</label>
+            <InputNumber
+              id="capacity_w"
+              value={formData.capacity_w}
+              onValueChange={(e) => handleFormChange('capacity_w', e.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="power_kw">Leistung (kW)</label>
+            <InputNumber
+              id="power_kw"
+              value={formData.power_kw}
+              onValueChange={(e) => handleFormChange('power_kw', e.value)}
+              className="w-full"
+              minFractionDigits={1}
+              maxFractionDigits={3}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="storage_power_kw">Speicherkapazität (kWh)</label>
+            <InputNumber
+              id="storage_power_kw"
+              value={formData.storage_power_kw}
+              onValueChange={(e) => handleFormChange('storage_power_kw', e.value)}
+              className="w-full"
+              minFractionDigits={1}
+              maxFractionDigits={3}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="efficiency_percent">Wirkungsgrad (%)</label>
+            <InputNumber
+              id="efficiency_percent"
+              value={formData.efficiency_percent}
+              onValueChange={(e) => handleFormChange('efficiency_percent', e.value)}
+              className="w-full"
+              suffix="%"
+              minFractionDigits={1}
+              maxFractionDigits={2}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="warranty_years">Garantie (Jahre)</label>
+            <InputNumber
+              id="warranty_years"
+              value={formData.warranty_years}
+              onValueChange={(e) => handleFormChange('warranty_years', e.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="origin_country">Herkunftsland</label>
+            <InputText
+              id="origin_country"
+              value={formData.origin_country || ''}
+              onChange={(e) => handleFormChange('origin_country', e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="col-span-2">
+            <div className="field">
+              <label htmlFor="description">Beschreibung</label>
+              <InputTextarea
+                id="description"
+                value={formData.description || ''}
+                onChange={(e) => handleFormChange('description', e.target.value)}
+                rows={3}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Image Upload */}
+          <div className="col-span-2">
+            <div className="field">
+              <label>🖼️ Produktbild</label>
+              <FileUpload
+                mode="basic"
+                name="image"
+                accept="image/*"
+                maxFileSize={2000000}
+                chooseLabel="🎨 Bild wählen"
+                onUpload={handleImageUpload}
+                customUpload
+                auto={false}
+              />
+              {formData.image_base64 && (
+                <Image
+                  src={`data:image/png;base64,${formData.image_base64}`}
+                  alt="Preview"
+                  width="100"
+                  className="mt-2"
+                />
+              )}
+            </div>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 };
 
-export default ProductManagement;
+export default ProductManagementFull;

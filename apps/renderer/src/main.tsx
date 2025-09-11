@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import "./index.css";
+import "./primereact-theme.css";
 import { Menubar } from 'primereact/menubar';
 import { MenuItem } from 'primereact/menuitem';
 import './App.css';
@@ -23,6 +24,29 @@ import AdvancedCalculations from "./routes/AdvancedCalculations";
 // Import PrimeReact Dashboard
 import PVOfferExample from "./components/PVOfferExample";
 import ComponentsDemo from "./routes/ComponentsDemo";
+import PrimeReactShowcase from "./components/PrimeReactShowcase";
+
+// Import Real Components
+// Import real components instead of placeholders
+import PdfHub from "./routes/PdfHub";
+import Dashboard from "./routes/Dashboard";
+import Documents from "./routes/Documents";
+
+// Import Admin components
+import AdminDashboard from "./routes/Admin/AdminDashboard";
+import ProductManagementAdmin from "./routes/Admin/ProductManagement";
+import PriceMatrixImport from "./routes/Admin/PriceMatrixImport";
+import SystemSettings from "./routes/Admin/SystemSettings";
+import DatabaseManagement from "./routes/Admin/DatabaseManagement";
+import Login from "./routes/Admin/Login";
+
+// Import CRM components
+import CRMMenu from "./routes/CRM/Menu";
+
+// Import other components
+import ProductManagement from "./components/ProductManagement";
+import ProductManagementFull from "./components/ProductManagementFull";
+import PriceMatrixFull from "./components/PriceMatrixFull";
 
 // Modern home dashboard component
 const HomeComponent = () => (
@@ -334,7 +358,8 @@ function AppLayout() {
       label: 'Demo',
       icon: 'pi pi-fw pi-star',
       items: [
-        { label: 'Neue Komponenten', url: '/demo/components' }
+        { label: 'Neue Komponenten', url: '/demo/components' },
+        { label: 'PrimeReact Showcase', url: '/demo/primereact' }
       ]
     },
     {
@@ -418,39 +443,41 @@ function App() {
             {/* Calculation Routes - Real Components with Modern Layout */}
             <Route path="calc/solar" element={<SolarCalculator />} />
             <Route path="calc/heatpump" element={<ModernPageWrapper title="Wärmepumpen-Simulator" category="calc"><HeatpumpSimulator /></ModernPageWrapper>} />
-            <Route path="calc/results" element={<ModernPageWrapper title="Ergebnisse & Dashboard" category="calc"><Results /></ModernPageWrapper>} />
+            <Route path="calc/results" element={<Results />} />
             <Route path="calc/advanced" element={<AdvancedCalculations />} />
             
             {/* Modern Dashboard Route */}
             <Route path="dashboard/modern" element={<PVOfferExample />} />
             
             {/* Components Demo Route */}
+                        {/* Demo Routes */}
             <Route path="demo/components" element={<ComponentsDemo />} />
+            <Route path="demo/primereact" element={<PrimeReactShowcase />} />
             
-            {/* PDF Routes */}
-            <Route path="pdf/standard" element={<PlaceholderPage title="Standard-PDF Erstellung" category="pdf" />} />
-            <Route path="pdf/extended" element={<PlaceholderPage title="Erweiterte PDF-Funktionen" category="pdf" />} />
-            <Route path="pdf/multi" element={<PlaceholderPage title="Multi-PDF Generator" category="pdf" />} />
-            <Route path="pdf/preview" element={<PlaceholderPage title="PDF Vorschau & Editor" category="pdf" />} />
+            {/* PDF Routes - REAL COMPONENTS */}
+            <Route path="pdf/standard" element={<PdfHub />} />
+            <Route path="pdf/extended" element={<PdfHub />} />
+            <Route path="pdf/multi" element={<PdfHub />} />
+            <Route path="pdf/preview" element={<PdfHub />} />
             
-            {/* CRM Routes */}
-            <Route path="crm/dashboard" element={<PlaceholderPage title="CRM Dashboard & Analytics" category="crm" />} />
-            <Route path="crm/customers" element={<PlaceholderPage title="Kundenverwaltung & Kontakte" category="crm" />} />
-            <Route path="crm/pipeline" element={<PlaceholderPage title="Pipeline & Workflow Management" category="crm" />} />
-            <Route path="crm/calendar" element={<PlaceholderPage title="Termin- & Kalenderverwaltung" category="crm" />} />
-            <Route path="crm/quick-calc" element={<PlaceholderPage title="Schnellkalkulation & Angebote" category="crm" />} />
+            {/* CRM Routes - REAL COMPONENTS */}
+            <Route path="crm/dashboard" element={<Dashboard />} />
+            <Route path="crm/customers" element={<CRMMenu />} />
+            <Route path="crm/pipeline" element={<CRMMenu />} />
+            <Route path="crm/calendar" element={<CRMMenu />} />
+            <Route path="crm/quick-calc" element={<CRMMenu />} />
             
-            {/* Planning Routes */}
-            <Route path="planning/info" element={<PlaceholderPage title="Informationsportal & Wissensbasis" category="planning" />} />
-            <Route path="planning/documents" element={<PlaceholderPage title="Dokument- & Dateiverwaltung" category="planning" />} />
+            {/* Planning Routes - REAL COMPONENTS */}
+            <Route path="planning/info" element={<Dashboard />} />
+            <Route path="planning/documents" element={<Documents />} />
             
-            {/* Admin Routes */}
-            <Route path="admin/login" element={<PlaceholderPage title="Administratoren Login" category="admin" />} />
-            <Route path="admin/companies" element={<PlaceholderPage title="Firmen- & Unternehmensverwaltung" category="admin" />} />
-            <Route path="admin/products" element={<PlaceholderPage title="Produkt- & Komponentenverwaltung" category="admin" />} />
-            <Route path="admin/price-matrix" element={<PlaceholderPage title="Preis-Matrix & Kalkulation" category="admin" />} />
-            <Route path="admin/tariffs" element={<PlaceholderPage title="Tarif- & Gebührenverwaltung" category="admin" />} />
-            <Route path="admin/settings" element={<PlaceholderPage title="System- & Anwendungseinstellungen" category="admin" />} />
+            {/* Admin Routes - REAL COMPONENTS */}
+            <Route path="admin/login" element={<Login />} />
+            <Route path="admin/companies" element={<AdminDashboard />} />
+            <Route path="admin/products" element={<ProductManagementFull />} />
+            <Route path="admin/price-matrix" element={<PriceMatrixFull />} />
+            <Route path="admin/tariffs" element={<DatabaseManagement />} />
+            <Route path="admin/settings" element={<SystemSettings />} />
             
             <Route path="*" element={<PlaceholderPage title="❓ Seite nicht gefunden" />} />
           </Route>

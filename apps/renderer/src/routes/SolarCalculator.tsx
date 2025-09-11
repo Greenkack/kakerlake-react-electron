@@ -89,7 +89,7 @@ interface SolarConfig {
   otherComponentNote: string;
 }
 
-// Mock-Ladefunktion – später ersetzen durch echte Bridge (IPC/fetch)
+// Mock-Ladefunktion – jetzt mit echter Database Bridge
 function useProducts(): { modules: Product[]; inverters: Product[]; storages: Product[]; loaded: boolean } {
   const [data, setData] = useState<{ modules: Product[]; inverters: Product[]; storages: Product[]}>({ modules: [], inverters: [], storages: [] });
   const [loaded, setLoaded] = useState<boolean>(false);
@@ -99,49 +99,103 @@ function useProducts(): { modules: Product[]; inverters: Product[]; storages: Pr
       let cancelled = false;
       async function loadReal() {
         try {
-          const api = (window as any).solarAPI;
-          if (!api) { setLoaded(true); return; }
-          // Lade alle Hersteller und deren Modelle
-          const [pvBrands, invBrands, storBrands] = await Promise.all([
-            api.getPVManufacturers(),
-            api.getInverterManufacturers(),
-            api.getStorageManufacturers(),
+          // Use database API for real product data
+          const databaseAPI = (window as any).databaseAPI;
+          if (!databaseAPI) { 
+            console.warn('Database API not available'); 
+            setLoaded(true); 
+            return; 
+          }
+          
+          // Load products by category from database (using correct DB categories)
+          const [moduleResults, inverterResults, storageResults] = await Promise.all([
+            databaseAPI.listProducts('modul'),           // lowercase 'm' as in DB
+            databaseAPI.listProducts('Wechselrichter'),  // capital 'W' as in DB
+            databaseAPI.listProducts('Batteriespeicher'), // capital 'B' as in DB
           ]);
-          const [pvModelsArr, invModelsArr, storModelsArr] = await Promise.all([
-            Promise.all((pvBrands || []).map((b: string) => api.getPVModelsByManufacturer(b))),
-            Promise.all((invBrands || []).map((b: string) => api.getInverterModelsByManufacturer(b))),
-            Promise.all((storBrands || []).map((b: string) => api.getStorageModelsByManufacturer(b))),
-          ]);
+          
           if (cancelled) return;
-          const pvModels = pvModelsArr.flat();
-          const invModels = invModelsArr.flat();
-          const stModels = storModelsArr.flat();
-          setData({
-            modules: (pvModels || []).map((m: any) => ({
-              id: String(m.id),
-              kategorie: m.kategorie,
-              hersteller: m.hersteller,
-              produkt_modell: m.produkt_modell,
-              pv_modul_leistung: m.pv_modul_leistung,
-            })),
-            inverters: (invModels || []).map((m: any) => ({
-              id: String(m.id),
-              kategorie: m.kategorie,
-              hersteller: m.hersteller,
-              produkt_modell: m.produkt_modell,
-              wr_leistung_kw: m.wr_leistung_kw,
-            })),
-            storages: (stModels || []).map((m: any) => ({
-              id: String(m.id),
-              kategorie: m.kategorie,
-              hersteller: m.hersteller,
-              produkt_modell: m.produkt_modell,
-              kapazitaet_speicher_kwh: m.kapazitaet_speicher_kwh,
-            })),
-          });
+          
+          const modules = (moduleResults?.data || []).map((m: any) => ({
+            id: String(m.id),
+            kategorie: m.category || 'modul',
+            hersteller: m.brand || '',
+            produkt_modell: m.model_name || '',
+            pv_modul_leistung: m.capacity_w || 0,
+          }));
+          
+          const inverters = (inverterResults?.data || []).map((m: any) => ({
+            id: String(m.id),
+            kategorie: m.category || 'Wechselrichter',
+            hersteller: m.brand || '',
+            produkt_modell: m.model_name || '',
+            wr_leistung_kw: m.power_kw || 0,
+          }));
+          
+          const storages = (storageResults?.data || []).map((m: any) => ({
+            id: String(m.id),
+            kategorie: m.category || 'Batteriespeicher',
+            hersteller: m.brand || '',
+            produkt_modell: m.model_name || '',
+            kapazitaet_speicher_kwh: m.storage_power_kw || 0,
+          }));
+          
+          setData({ modules, inverters, storages });
           setLoaded(true);
+          
+          console.log('Database products loaded:', { 
+            modules: modules.length, 
+            inverters: inverters.length, 
+            storages: storages.length 
+          });
+          
         } catch (e) {
-          console.error('Echt-Daten Laden fehlgeschlagen, fallback Mock', e);
+          console.error('Database loading failed, using fallback', e);
+          // Fallback to solar API
+          try {
+            const api = (window as any).solarAPI;
+            if (!api) { setLoaded(true); return; }
+            // Lade alle Hersteller und deren Modelle
+            const [pvBrands, invBrands, storBrands] = await Promise.all([
+              api.getPVManufacturers(),
+              api.getInverterManufacturers(),
+              api.getStorageManufacturers(),
+            ]);
+            const [pvModelsArr, invModelsArr, storModelsArr] = await Promise.all([
+              Promise.all((pvBrands || []).map((b: string) => api.getPVModelsByManufacturer(b))),
+              Promise.all((invBrands || []).map((b: string) => api.getInverterModelsByManufacturer(b))),
+              Promise.all((storBrands || []).map((b: string) => api.getStorageModelsByManufacturer(b))),
+            ]);
+            if (cancelled) return;
+            const pvModels = pvModelsArr.flat();
+            const invModels = invModelsArr.flat();
+            const stModels = storModelsArr.flat();
+            setData({
+              modules: (pvModels || []).map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+                pv_modul_leistung: m.pv_modul_leistung,
+              })),
+              inverters: (invModels || []).map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+                wr_leistung_kw: m.wr_leistung_kw,
+              })),
+              storages: (stModels || []).map((m: any) => ({
+                id: String(m.id),
+                kategorie: m.kategorie,
+                hersteller: m.hersteller,
+                produkt_modell: m.produkt_modell,
+                kapazitaet_speicher_kwh: m.kapazitaet_speicher_kwh,
+              })),
+            });
+          } catch (fallbackError) {
+            console.error('Both database and solar API failed', fallbackError);
+          }
           setLoaded(true);
         }
       }
@@ -180,6 +234,47 @@ export default function SolarCalculator(): JSX.Element {
   const [carportProducts, setCarportProducts] = useState<Product[]>([]);
   const [emergencyPowerProducts, setEmergencyPowerProducts] = useState<Product[]>([]);
   const [animalProtectionProducts, setAnimalProtectionProducts] = useState<Product[]>([]);
+
+  // Load additional component products
+  useEffect(() => {
+    async function loadAdditionalProducts() {
+      try {
+        const databaseAPI = (window as any).databaseAPI;
+        if (!databaseAPI) return;
+
+        const [wallboxRes, emsRes, optimizerRes, carportRes, emergencyRes, animalRes] = await Promise.all([
+          databaseAPI.listProducts('Wallbox'),
+          databaseAPI.listProducts('Energiemanagementsystem'),
+          databaseAPI.listProducts('Leistungsoptimierer'),
+          databaseAPI.listProducts('Carport'),
+          databaseAPI.listProducts('Notstromversorgung'),
+          databaseAPI.listProducts('Tierabwehrschutz'),
+        ]);
+
+        const mapProduct = (p: any) => ({
+          id: String(p.id),
+          kategorie: p.category || '',
+          hersteller: p.brand || '',
+          produkt_modell: p.model_name || '',
+          pv_modul_leistung: p.capacity_w || 0,
+          wr_leistung_kw: p.power_kw || 0,
+          kapazitaet_speicher_kwh: p.storage_power_kw || 0,
+        });
+
+        setWallboxProducts((wallboxRes?.data || []).map(mapProduct));
+        setEmsProducts((emsRes?.data || []).map(mapProduct));
+        setOptimizerProducts((optimizerRes?.data || []).map(mapProduct));
+        setCarportProducts((carportRes?.data || []).map(mapProduct));
+        setEmergencyPowerProducts((emergencyRes?.data || []).map(mapProduct));
+        setAnimalProtectionProducts((animalRes?.data || []).map(mapProduct));
+
+      } catch (error) {
+        console.error('Error loading additional products:', error);
+      }
+    }
+
+    loadAdditionalProducts();
+  }, []);
 
   // Removed legacy step system - now using activeStep only
 

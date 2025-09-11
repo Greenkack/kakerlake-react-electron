@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useProject } from '../state/project';
 // PrimeReact Core Imports
 import { Steps } from 'primereact/steps';
@@ -22,7 +22,7 @@ import 'primereact/resources/themes/saga-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
-// Mock-Ladefunktion – später ersetzen durch echte Bridge (IPC/fetch)
+// Mock-Ladefunktion – jetzt mit echter Database Bridge
 function useProducts() {
     const [data, setData] = useState({ modules: [], inverters: [], storages: [] });
     const [loaded, setLoaded] = useState(false);
@@ -30,54 +30,102 @@ function useProducts() {
         let cancelled = false;
         async function loadReal() {
             try {
-                const api = window.solarAPI;
-                if (!api) {
+                // Use database API for real product data
+                const databaseAPI = window.databaseAPI;
+                if (!databaseAPI) {
+                    console.warn('Database API not available');
                     setLoaded(true);
                     return;
                 }
-                // Lade alle Hersteller und deren Modelle
-                const [pvBrands, invBrands, storBrands] = await Promise.all([
-                    api.getPVManufacturers(),
-                    api.getInverterManufacturers(),
-                    api.getStorageManufacturers(),
-                ]);
-                const [pvModelsArr, invModelsArr, storModelsArr] = await Promise.all([
-                    Promise.all((pvBrands || []).map((b) => api.getPVModelsByManufacturer(b))),
-                    Promise.all((invBrands || []).map((b) => api.getInverterModelsByManufacturer(b))),
-                    Promise.all((storBrands || []).map((b) => api.getStorageModelsByManufacturer(b))),
+                // Load products by category from database
+                const [moduleResults, inverterResults, storageResults] = await Promise.all([
+                    databaseAPI.listProducts('Modul'),
+                    databaseAPI.listProducts('Wechselrichter'),
+                    databaseAPI.listProducts('Batteriespeicher'),
                 ]);
                 if (cancelled)
                     return;
-                const pvModels = pvModelsArr.flat();
-                const invModels = invModelsArr.flat();
-                const stModels = storModelsArr.flat();
-                setData({
-                    modules: (pvModels || []).map((m) => ({
-                        id: String(m.id),
-                        kategorie: m.kategorie,
-                        hersteller: m.hersteller,
-                        produkt_modell: m.produkt_modell,
-                        pv_modul_leistung: m.pv_modul_leistung,
-                    })),
-                    inverters: (invModels || []).map((m) => ({
-                        id: String(m.id),
-                        kategorie: m.kategorie,
-                        hersteller: m.hersteller,
-                        produkt_modell: m.produkt_modell,
-                        wr_leistung_kw: m.wr_leistung_kw,
-                    })),
-                    storages: (stModels || []).map((m) => ({
-                        id: String(m.id),
-                        kategorie: m.kategorie,
-                        hersteller: m.hersteller,
-                        produkt_modell: m.produkt_modell,
-                        kapazitaet_speicher_kwh: m.kapazitaet_speicher_kwh,
-                    })),
-                });
+                const modules = (moduleResults?.data || []).map((m) => ({
+                    id: String(m.id),
+                    kategorie: m.category || 'Modul',
+                    hersteller: m.brand || '',
+                    produkt_modell: m.model_name || '',
+                    pv_modul_leistung: m.capacity_w || 0,
+                }));
+                const inverters = (inverterResults?.data || []).map((m) => ({
+                    id: String(m.id),
+                    kategorie: m.category || 'Wechselrichter',
+                    hersteller: m.brand || '',
+                    produkt_modell: m.model_name || '',
+                    wr_leistung_kw: m.power_kw || 0,
+                }));
+                const storages = (storageResults?.data || []).map((m) => ({
+                    id: String(m.id),
+                    kategorie: m.category || 'Batteriespeicher',
+                    hersteller: m.brand || '',
+                    produkt_modell: m.model_name || '',
+                    kapazitaet_speicher_kwh: m.storage_power_kw || 0,
+                }));
+                setData({ modules, inverters, storages });
                 setLoaded(true);
+                console.log('Database products loaded:', {
+                    modules: modules.length,
+                    inverters: inverters.length,
+                    storages: storages.length
+                });
             }
             catch (e) {
-                console.error('Echt-Daten Laden fehlgeschlagen, fallback Mock', e);
+                console.error('Database loading failed, using fallback', e);
+                // Fallback to solar API
+                try {
+                    const api = window.solarAPI;
+                    if (!api) {
+                        setLoaded(true);
+                        return;
+                    }
+                    // Lade alle Hersteller und deren Modelle
+                    const [pvBrands, invBrands, storBrands] = await Promise.all([
+                        api.getPVManufacturers(),
+                        api.getInverterManufacturers(),
+                        api.getStorageManufacturers(),
+                    ]);
+                    const [pvModelsArr, invModelsArr, storModelsArr] = await Promise.all([
+                        Promise.all((pvBrands || []).map((b) => api.getPVModelsByManufacturer(b))),
+                        Promise.all((invBrands || []).map((b) => api.getInverterModelsByManufacturer(b))),
+                        Promise.all((storBrands || []).map((b) => api.getStorageModelsByManufacturer(b))),
+                    ]);
+                    if (cancelled)
+                        return;
+                    const pvModels = pvModelsArr.flat();
+                    const invModels = invModelsArr.flat();
+                    const stModels = storModelsArr.flat();
+                    setData({
+                        modules: (pvModels || []).map((m) => ({
+                            id: String(m.id),
+                            kategorie: m.kategorie,
+                            hersteller: m.hersteller,
+                            produkt_modell: m.produkt_modell,
+                            pv_modul_leistung: m.pv_modul_leistung,
+                        })),
+                        inverters: (invModels || []).map((m) => ({
+                            id: String(m.id),
+                            kategorie: m.kategorie,
+                            hersteller: m.hersteller,
+                            produkt_modell: m.produkt_modell,
+                            wr_leistung_kw: m.wr_leistung_kw,
+                        })),
+                        storages: (stModels || []).map((m) => ({
+                            id: String(m.id),
+                            kategorie: m.kategorie,
+                            hersteller: m.hersteller,
+                            produkt_modell: m.produkt_modell,
+                            kapazitaet_speicher_kwh: m.kapazitaet_speicher_kwh,
+                        })),
+                    });
+                }
+                catch (fallbackError) {
+                    console.error('Both database and solar API failed', fallbackError);
+                }
                 setLoaded(true);
             }
         }
@@ -110,8 +158,7 @@ export default function SolarCalculator() {
     const [carportProducts, setCarportProducts] = useState([]);
     const [emergencyPowerProducts, setEmergencyPowerProducts] = useState([]);
     const [animalProtectionProducts, setAnimalProtectionProducts] = useState([]);
-    // Schritt-Logik (legacy)
-    const [step, setStep] = useState(1);
+    // Removed legacy step system - now using activeStep only
     // Solar Config State - initialisiert mit realistischen Demo-Werten aus echter DB
     const [config, setConfig] = useState(() => ({
         moduleQty: 20,
@@ -390,21 +437,33 @@ export default function SolarCalculator() {
     const carportModels = carportProducts.filter((p) => !config.carportBrand || p.hersteller === config.carportBrand);
     const emergencyPowerModels = emergencyPowerProducts.filter((p) => !config.emergencyPowerBrand || p.hersteller === config.emergencyPowerBrand);
     const animalProtectionModels = animalProtectionProducts.filter((p) => !config.animalProtectionBrand || p.hersteller === config.animalProtectionBrand);
-    // Validierung Kernschritt
+    // Validierung basierend auf activeStep (für PrimeReact Navigation)
     const errors = [];
-    if (step === 1) {
+    if (activeStep === 0) { // Module Step
         if (config.moduleQty <= 0)
             errors.push('Anzahl Module > 0 erforderlich');
+        if (!config.moduleBrand)
+            errors.push('Modul-Hersteller wählen');
         if (!config.moduleModel)
             errors.push('Modul-Modell wählen');
+    }
+    if (activeStep === 1) { // Inverter Step
+        if (!config.invBrand)
+            errors.push('Wechselrichter-Hersteller wählen');
         if (!config.invModel)
             errors.push('Wechselrichter-Modell wählen');
         if (config.invQty <= 0)
             errors.push('Anzahl Wechselrichter > 0 erforderlich');
-        if (config.withStorage && !config.storageModel)
-            errors.push('Speicher-Modell wählen (wenn Speicher aktiviert)');
     }
-    if (step === 2 && config.additionalComponents) {
+    if (activeStep === 2) { // Storage Step
+        if (config.withStorage && !config.storageBrand)
+            errors.push('Speicher-Hersteller wählen');
+        if (config.withStorage && !config.storageModel)
+            errors.push('Speicher-Modell wählen');
+        if (config.withStorage && config.storageDesiredKWh <= 0)
+            errors.push('Speicherkapazität > 0 erforderlich');
+    }
+    if (activeStep === 3 && config.additionalComponents) { // Additional Components Step
         if (config.wallboxEnabled && !config.wallboxModel)
             errors.push('Wallbox-Modell wählen');
         if (config.emsEnabled && !config.emsModel)
@@ -417,13 +476,6 @@ export default function SolarCalculator() {
             errors.push('Notstrom-Modell wählen');
         if (config.animalProtectionEnabled && !config.animalProtectionModel)
             errors.push('Tierabwehr-Modell wählen');
-    }
-    function goNext() {
-        if (errors.length === 0) {
-            if (step === 1)
-                setStep(2);
-            // Schritt 2 ist letzter Schritt, führt direkt zu finishAndBack
-        }
     }
     async function finishAndBack() {
         try {
@@ -459,7 +511,7 @@ export default function SolarCalculator() {
                                     label: `${product.produkt_modell} (${product.kapazitaet_speicher_kwh}kWh)`,
                                     value: product.produkt_modell
                                 })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.storageBrand, filter: true })] })] }))] }));
-    const renderAdditionalStep = () => (_jsxs(Card, { title: "\uD83D\uDD27 Zusatzkomponenten (optional)", children: [_jsxs("div", { className: "mb-4", children: [_jsx(Checkbox, { inputId: "additional-checkbox", checked: config.additionalComponents, onChange: (e) => setConfig(prev => ({ ...prev, additionalComponents: !!e.checked })) }), _jsx("label", { htmlFor: "additional-checkbox", className: "ml-2 text-900 font-medium", children: "Zusatzkomponenten konfigurieren" })] }), config.additionalComponents && (_jsx(Accordion, { multiple: true, children: _jsxs(AccordionTab, { header: "\uD83D\uDE97 Wallbox", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "wallbox-checkbox", checked: config.wallboxEnabled, onChange: (e) => setConfig(prev => ({ ...prev, wallboxEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "wallbox-checkbox", className: "ml-2", children: "Wallbox hinzuf\u00FCgen" })] }), config.wallboxEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.wallboxBrand, onChange: (e) => setConfig(prev => ({ ...prev, wallboxBrand: e.value, wallboxModel: '' })), options: wallboxBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.wallboxModel, onChange: (e) => setConfig(prev => ({ ...prev, wallboxModel: e.value })), options: wallboxModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.wallboxBrand }) })] }))] }) }))] }));
+    const renderAdditionalStep = () => (_jsxs(Card, { title: "\uD83D\uDD27 Zusatzkomponenten (optional)", children: [_jsxs("div", { className: "mb-4", children: [_jsx(Checkbox, { inputId: "additional-checkbox", checked: config.additionalComponents, onChange: (e) => setConfig(prev => ({ ...prev, additionalComponents: !!e.checked })) }), _jsx("label", { htmlFor: "additional-checkbox", className: "ml-2 text-900 font-medium", children: "Zusatzkomponenten konfigurieren" })] }), config.additionalComponents && (_jsxs(Accordion, { multiple: true, children: [_jsxs(AccordionTab, { header: "\uD83D\uDE97 Wallbox", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "wallbox-checkbox", checked: config.wallboxEnabled, onChange: (e) => setConfig(prev => ({ ...prev, wallboxEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "wallbox-checkbox", className: "ml-2", children: "Wallbox hinzuf\u00FCgen" })] }), config.wallboxEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.wallboxBrand, onChange: (e) => setConfig(prev => ({ ...prev, wallboxBrand: e.value, wallboxModel: '' })), options: wallboxBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.wallboxModel, onChange: (e) => setConfig(prev => ({ ...prev, wallboxModel: e.value })), options: wallboxModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.wallboxBrand }) })] }))] }), _jsxs(AccordionTab, { header: "\u26A1 Energiemanagementsystem", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "ems-checkbox", checked: config.emsEnabled, onChange: (e) => setConfig(prev => ({ ...prev, emsEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "ems-checkbox", className: "ml-2", children: "Energiemanagementsystem hinzuf\u00FCgen" })] }), config.emsEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.emsBrand, onChange: (e) => setConfig(prev => ({ ...prev, emsBrand: e.value, emsModel: '' })), options: emsBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.emsModel, onChange: (e) => setConfig(prev => ({ ...prev, emsModel: e.value })), options: emsModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.emsBrand }) })] }))] }), _jsxs(AccordionTab, { header: "\uD83D\uDCC8 Leistungsoptimierer", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "optimizer-checkbox", checked: config.optimizerEnabled, onChange: (e) => setConfig(prev => ({ ...prev, optimizerEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "optimizer-checkbox", className: "ml-2", children: "Leistungsoptimierer hinzuf\u00FCgen" })] }), config.optimizerEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-4", children: _jsx(Dropdown, { value: config.optimizerBrand, onChange: (e) => setConfig(prev => ({ ...prev, optimizerBrand: e.value, optimizerModel: '' })), options: optimizerBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-4", children: _jsx(Dropdown, { value: config.optimizerModel, onChange: (e) => setConfig(prev => ({ ...prev, optimizerModel: e.value })), options: optimizerModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.optimizerBrand }) }), _jsx("div", { className: "col-12 md:col-4", children: _jsx(InputNumber, { value: config.optimizerQty, onValueChange: (e) => setConfig(prev => ({ ...prev, optimizerQty: e.value || 1 })), placeholder: "Anzahl", className: "w-full", min: 1, max: 100 }) })] }))] }), _jsxs(AccordionTab, { header: "\uD83C\uDFE0 Solar Carport", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "carport-checkbox", checked: config.carportEnabled, onChange: (e) => setConfig(prev => ({ ...prev, carportEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "carport-checkbox", className: "ml-2", children: "Solar Carport hinzuf\u00FCgen" })] }), config.carportEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.carportBrand, onChange: (e) => setConfig(prev => ({ ...prev, carportBrand: e.value, carportModel: '' })), options: carportBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.carportModel, onChange: (e) => setConfig(prev => ({ ...prev, carportModel: e.value })), options: carportModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.carportBrand }) })] }))] }), _jsxs(AccordionTab, { header: "\uD83D\uDD0B Notstromversorgung", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "emergency-power-checkbox", checked: config.emergencyPowerEnabled, onChange: (e) => setConfig(prev => ({ ...prev, emergencyPowerEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "emergency-power-checkbox", className: "ml-2", children: "Notstromversorgung hinzuf\u00FCgen" })] }), config.emergencyPowerEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.emergencyPowerBrand, onChange: (e) => setConfig(prev => ({ ...prev, emergencyPowerBrand: e.value, emergencyPowerModel: '' })), options: emergencyPowerBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.emergencyPowerModel, onChange: (e) => setConfig(prev => ({ ...prev, emergencyPowerModel: e.value })), options: emergencyPowerModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.emergencyPowerBrand }) })] }))] }), _jsxs(AccordionTab, { header: "\uD83D\uDC26 Tierabwehrschutz", children: [_jsxs("div", { className: "mb-3", children: [_jsx(Checkbox, { inputId: "animal-protection-checkbox", checked: config.animalProtectionEnabled, onChange: (e) => setConfig(prev => ({ ...prev, animalProtectionEnabled: !!e.checked })) }), _jsx("label", { htmlFor: "animal-protection-checkbox", className: "ml-2", children: "Tierabwehrschutz hinzuf\u00FCgen" })] }), config.animalProtectionEnabled && (_jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.animalProtectionBrand, onChange: (e) => setConfig(prev => ({ ...prev, animalProtectionBrand: e.value, animalProtectionModel: '' })), options: animalProtectionBrands.map(brand => ({ label: brand, value: brand })), placeholder: "Hersteller w\u00E4hlen", className: "w-full" }) }), _jsx("div", { className: "col-12 md:col-6", children: _jsx(Dropdown, { value: config.animalProtectionModel, onChange: (e) => setConfig(prev => ({ ...prev, animalProtectionModel: e.value })), options: animalProtectionModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell })), placeholder: "Modell w\u00E4hlen", className: "w-full", disabled: !config.animalProtectionBrand }) })] }))] }), _jsx(AccordionTab, { header: "\uD83D\uDCDD Sonstige Anmerkungen", children: _jsx(InputText, { value: config.otherComponentNote, onChange: (e) => setConfig(prev => ({ ...prev, otherComponentNote: e.target.value })), placeholder: "Weitere Anmerkungen zu Zusatzkomponenten...", className: "w-full" }) })] }))] }));
     const renderResultsStep = () => (_jsxs("div", { children: [_jsx(Card, { title: "\uFFFD Anlagenkonfiguration", className: "mb-4", children: _jsxs("div", { className: "grid", children: [_jsx("div", { className: "col-12 md:col-4", children: _jsx(Panel, { header: "\u26A1 PV-Module", className: "h-full", children: _jsxs("div", { className: "flex flex-column gap-2", children: [_jsx(Badge, { value: `${config.moduleQty} Stück`, severity: "info", size: "large" }), _jsxs("p", { className: "m-0", children: [_jsx("strong", { children: "Hersteller:" }), " ", config.moduleBrand] }), _jsxs("p", { className: "m-0", children: [_jsx("strong", { children: "Modell:" }), " ", config.moduleModel] })] }) }) }), _jsx("div", { className: "col-12 md:col-4", children: _jsx(Panel, { header: "\uD83D\uDD04 Wechselrichter", className: "h-full", children: _jsxs("div", { className: "flex flex-column gap-2", children: [_jsx(Badge, { value: `${config.invQty} Stück`, severity: "warning", size: "large" }), _jsxs("p", { className: "m-0", children: [_jsx("strong", { children: "Hersteller:" }), " ", config.invBrand] }), _jsxs("p", { className: "m-0", children: [_jsx("strong", { children: "Modell:" }), " ", config.invModel] })] }) }) }), _jsx("div", { className: "col-12 md:col-4", children: _jsx(Panel, { header: "\uD83D\uDD0B Speicher", className: "h-full", children: config.withStorage ? (_jsxs("div", { className: "flex flex-column gap-2", children: [_jsx(Badge, { value: `${config.storageDesiredKWh} kWh`, severity: "success", size: "large" }), _jsxs("p", { className: "m-0", children: [_jsx("strong", { children: "Hersteller:" }), " ", config.storageBrand] }), _jsxs("p", { className: "m-0", children: [_jsx("strong", { children: "Modell:" }), " ", config.storageModel] })] })) : (_jsx(Message, { severity: "info", text: "Kein Speicher konfiguriert" })) }) })] }) }), calculationResults ? (_jsx(CalculationResultsComponent, { results: calculationResults, isLoading: isCalculating, onRecalculate: performCalculations })) : (_jsx(Card, { title: "\uFFFD Berechnungen starten", children: _jsxs("div", { className: "text-center p-6", children: [_jsx("div", { className: "mb-4", children: _jsx("i", { className: "pi pi-calculator text-6xl text-primary" }) }), _jsx("h3", { children: "Bereit f\u00FCr die Berechnung" }), _jsx("p", { className: "text-600 mb-4", children: "Ihre Anlagenkonfiguration ist vollst\u00E4ndig. Starten Sie jetzt die detaillierte Berechnung mit Ertrag, Kosten und Amortisation." }), _jsx(Button, { label: isCalculating ? "Berechnung läuft..." : "Berechnungen starten", icon: isCalculating ? "pi pi-spin pi-spinner" : "pi pi-play", size: "large", severity: "success", onClick: performCalculations, loading: isCalculating, disabled: isCalculating, className: "mb-2" }), _jsx("div", { className: "text-sm text-500", children: "Die Berechnung dauert ca. 10-30 Sekunden" })] }) })), _jsx(Card, { className: "mt-4", children: _jsxs("div", { className: "flex justify-content-between", children: [_jsx(Button, { label: "Zur\u00FCck zur Konfiguration", icon: "pi pi-arrow-left", className: "p-button-outlined", onClick: () => setActiveStep(3) }), calculationResults && (_jsx(Button, { label: "PDF erstellen", icon: "pi pi-file-pdf", severity: "success", onClick: () => {
                                 // TODO: Implement PDF generation
                                 toast.current?.show({ severity: 'info', summary: 'PDF', detail: 'PDF-Erstellung wird implementiert...' });
@@ -484,5 +536,4 @@ export default function SolarCalculator() {
           background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
         }
       ` })] }));
-    return (_jsxs("div", { className: "mx-auto max-w-5xl space-y-6", children: [_jsxs("header", { className: "rounded-xl bg-white p-4 shadow flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("h1", { className: "text-2xl font-semibold", children: "Solarkalkulator" }), _jsxs("p", { className: "text-gray-600 text-sm", children: ["Schritt ", step, " / 2 \u2013 Technik konfigurieren"] })] }), _jsx("span", { className: "text-xs text-gray-400", children: "Build SC-TS v1" })] }), step === 1 && (_jsxs("section", { className: "rounded-xl bg-white p-5 shadow space-y-8", children: [_jsxs("div", { className: "bg-blue-50 border border-blue-200 rounded-lg p-4", children: [_jsx("div", { className: "flex items-center gap-2 mb-2", children: _jsx("span", { className: "text-blue-600 font-medium", children: "\uD83D\uDE80 Demo-Konfiguration" }) }), _jsxs("div", { className: "text-sm text-blue-700 grid gap-1 md:grid-cols-3", children: [_jsxs("div", { children: [_jsx("strong", { children: "Anzahl Module:" }), " ", config.moduleQty] }), _jsxs("div", { children: [_jsx("strong", { children: "Leistung pro Modul:" }), " ", moduleWp, " Wp"] }), _jsxs("div", { children: [_jsx("strong", { children: "Anlagengr\u00F6\u00DFe:" }), " ", kWp.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), " kWp"] })] })] }), _jsxs("div", { className: "space-y-4", children: [_jsx("h2", { className: "text-lg font-semibold", children: "PV Module" }), _jsx("div", { className: "grid gap-4 md:grid-cols-3", children: _jsxs("div", { className: "flex gap-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Anzahl PV Module" }), _jsx(InputNumber, { value: config.moduleQty, onValueChange: e => setConfig(prev => ({ ...prev, moduleQty: e.value || 0 })), showButtons: true, buttonLayout: "horizontal", min: 0, className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.moduleBrand, onChange: e => setConfig(prev => ({ ...prev, moduleBrand: e.value, moduleModel: '' })), options: moduleBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.moduleModel, onChange: e => setConfig(prev => ({ ...prev, moduleModel: e.value })), options: filteredModuleModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] })] }) }), _jsxs("div", { className: "grid gap-4 md:grid-cols-3", children: [_jsxs("div", { className: "rounded border bg-gray-50 p-3 text-sm", children: [_jsx("div", { className: "text-gray-600", children: "Leistung pro Modul (Wp)" }), _jsx("div", { className: "font-semibold text-lg", children: moduleWp || 0 })] }), _jsxs("div", { className: "rounded border bg-blue-50 p-3 text-sm border-blue-200", children: [_jsx("div", { className: "text-blue-700", children: "Anlagengr\u00F6\u00DFe (kWp)" }), _jsx("div", { className: "font-bold text-2xl text-blue-800", children: kWp.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })] }), _jsxs("div", { className: "rounded border bg-green-50 p-3 text-sm border-green-200", children: [_jsx("div", { className: "text-green-700", children: "Jahresertrag (gesch\u00E4tzt)" }), _jsxs("div", { className: "font-semibold text-lg text-green-800", children: [Math.round(kWp * 950).toLocaleString('de-DE'), " kWh"] })] })] })] }), _jsxs("div", { className: "space-y-4 pt-2 border-t", children: [_jsx("h2", { className: "text-lg font-semibold", children: "Wechselrichter" }), _jsxs("div", { className: "flex gap-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.invBrand, onChange: e => setConfig(prev => ({ ...prev, invBrand: e.value, invModel: '' })), options: inverterBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.invModel, onChange: e => setConfig(prev => ({ ...prev, invModel: e.value })), options: filteredInvModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Anzahl WR" }), _jsx(InputNumber, { value: config.invQty, onValueChange: e => setConfig(prev => ({ ...prev, invQty: Math.max(1, e.value || 1) })), showButtons: true, buttonLayout: "horizontal", min: 1, className: "w-full" })] })] }), _jsxs("div", { className: "grid gap-4 md:grid-cols-3", children: [_jsxs("div", { className: "rounded border bg-gray-50 p-3 text-sm", children: [_jsx("div", { className: "text-gray-600", children: "Leistung je WR (kW)" }), _jsx("div", { className: "font-semibold text-lg", children: currentInv?.wr_leistung_kw ?? 0 })] }), _jsxs("div", { className: "rounded border bg-gray-50 p-3 text-sm", children: [_jsx("div", { className: "text-gray-600", children: "WR Gesamt (kW)" }), _jsx("div", { className: "font-semibold text-lg", children: totalInvPowerKW.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })] })] })] }), _jsxs("div", { className: "space-y-4 pt-2 border-t", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("input", { id: "withStorage", type: "checkbox", checked: config.withStorage, onChange: e => setConfig(prev => ({ ...prev, withStorage: e.target.checked })) }), _jsx("label", { htmlFor: "withStorage", className: "text-sm font-medium", children: "Batteriespeicher einplanen" })] }), config.withStorage && (_jsxs("div", { className: "flex gap-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.storageBrand, onChange: e => setConfig(prev => ({ ...prev, storageBrand: e.value, storageModel: '' })), options: storageBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { className: "flex-grow", children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.storageModel, onChange: e => setConfig(prev => ({ ...prev, storageModel: e.value })), options: filteredStorageModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Gew\u00FCnschte Gesamtkapazit\u00E4t (kWh)" }), _jsx(InputNumber, { value: config.storageDesiredKWh, onValueChange: e => setConfig(prev => ({ ...prev, storageDesiredKWh: e.value || 0 })), min: 0, className: "w-full" })] })] }))] }), errors.length > 0 && (_jsx("div", { className: "rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700 space-y-1", children: errors.map(e => _jsxs("div", { children: ["\u2022 ", e] }, e)) })), _jsx("div", { className: "flex justify-end pt-4", children: _jsx("button", { onClick: goNext, className: "bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg disabled:opacity-50", disabled: errors.length > 0, children: "N\u00E4chste Seite" }) })] })), step === 2 && (_jsxs("section", { className: "rounded-xl bg-white p-5 shadow space-y-6", children: [_jsx("h2", { className: "text-lg font-semibold", children: "Zus\u00E4tzliche Komponenten" }), _jsx("div", { children: _jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.additionalComponents, onChange: e => setConfig(prev => ({ ...prev, additionalComponents: !!e.checked })) }), _jsx("span", { children: "Zus\u00E4tzliche Komponenten hinzuf\u00FCgen" })] }) }), config.additionalComponents && (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { className: "border rounded p-4 space-y-3", children: [_jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.wallboxEnabled, onChange: e => setConfig(prev => ({ ...prev, wallboxEnabled: !!e.checked })) }), _jsx("span", { className: "font-medium", children: "Wallbox" })] }), config.wallboxEnabled && (_jsxs("div", { className: "grid gap-4 md:grid-cols-2 ml-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.wallboxBrand, onChange: e => setConfig(prev => ({ ...prev, wallboxBrand: e.value, wallboxModel: '' })), options: wallboxBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.wallboxModel, onChange: e => setConfig(prev => ({ ...prev, wallboxModel: e.value })), options: wallboxModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] })] }))] }), _jsxs("div", { className: "border rounded p-4 space-y-3", children: [_jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.emsEnabled, onChange: e => setConfig(prev => ({ ...prev, emsEnabled: !!e.checked })) }), _jsx("span", { className: "font-medium", children: "Energie Management System (EMS)" })] }), config.emsEnabled && (_jsxs("div", { className: "grid gap-4 md:grid-cols-2 ml-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.emsBrand, onChange: e => setConfig(prev => ({ ...prev, emsBrand: e.value, emsModel: '' })), options: emsBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.emsModel, onChange: e => setConfig(prev => ({ ...prev, emsModel: e.value })), options: emsModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] })] }))] }), _jsxs("div", { className: "border rounded p-4 space-y-3", children: [_jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.optimizerEnabled, onChange: e => setConfig(prev => ({ ...prev, optimizerEnabled: !!e.checked })) }), _jsx("span", { className: "font-medium", children: "Optimizer" })] }), config.optimizerEnabled && (_jsxs("div", { className: "grid gap-4 md:grid-cols-3 ml-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.optimizerBrand, onChange: e => setConfig(prev => ({ ...prev, optimizerBrand: e.value, optimizerModel: '' })), options: optimizerBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.optimizerModel, onChange: e => setConfig(prev => ({ ...prev, optimizerModel: e.value })), options: optimizerModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Anzahl" }), _jsx(InputNumber, { value: config.optimizerQty, onValueChange: e => setConfig(prev => ({ ...prev, optimizerQty: e.value || 0 })), min: 0, className: "w-full" })] })] }))] }), _jsxs("div", { className: "border rounded p-4 space-y-3", children: [_jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.carportEnabled, onChange: e => setConfig(prev => ({ ...prev, carportEnabled: !!e.checked })) }), _jsx("span", { className: "font-medium", children: "Carport" })] }), config.carportEnabled && (_jsxs("div", { className: "grid gap-4 md:grid-cols-2 ml-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.carportBrand, onChange: e => setConfig(prev => ({ ...prev, carportBrand: e.value, carportModel: '' })), options: carportBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.carportModel, onChange: e => setConfig(prev => ({ ...prev, carportModel: e.value })), options: carportModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] })] }))] }), _jsxs("div", { className: "border rounded p-4 space-y-3", children: [_jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.emergencyPowerEnabled, onChange: e => setConfig(prev => ({ ...prev, emergencyPowerEnabled: !!e.checked })) }), _jsx("span", { className: "font-medium", children: "Notstrom" })] }), config.emergencyPowerEnabled && (_jsxs("div", { className: "grid gap-4 md:grid-cols-2 ml-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.emergencyPowerBrand, onChange: e => setConfig(prev => ({ ...prev, emergencyPowerBrand: e.value, emergencyPowerModel: '' })), options: emergencyPowerBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.emergencyPowerModel, onChange: e => setConfig(prev => ({ ...prev, emergencyPowerModel: e.value })), options: emergencyPowerModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] })] }))] }), _jsxs("div", { className: "border rounded p-4 space-y-3", children: [_jsxs("label", { className: "flex items-center gap-2", children: [_jsx(Checkbox, { checked: config.animalProtectionEnabled, onChange: e => setConfig(prev => ({ ...prev, animalProtectionEnabled: !!e.checked })) }), _jsx("span", { className: "font-medium", children: "Tierabwehr" })] }), config.animalProtectionEnabled && (_jsxs("div", { className: "grid gap-4 md:grid-cols-2 ml-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Hersteller" }), _jsx(Dropdown, { value: config.animalProtectionBrand, onChange: e => setConfig(prev => ({ ...prev, animalProtectionBrand: e.value, animalProtectionModel: '' })), options: animalProtectionBrands.map(b => ({ label: b, value: b })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Modell" }), _jsx(Dropdown, { value: config.animalProtectionModel, onChange: e => setConfig(prev => ({ ...prev, animalProtectionModel: e.value })), options: animalProtectionModels.map(m => ({ label: m.produkt_modell, value: m.produkt_modell })), placeholder: "-- w\u00E4hlen --", className: "w-full" })] })] }))] })] })), _jsxs("div", { children: [_jsx("label", { className: "block text-sm mb-1", children: "Sonstiges (frei)" }), _jsx(InputText, { value: config.otherComponentNote, onChange: e => setConfig(prev => ({ ...prev, otherComponentNote: e.target.value })), maxLength: 120, placeholder: "Freitext...", className: "w-full" })] }), _jsxs("div", { className: "flex justify-between pt-4", children: [_jsx("button", { onClick: () => setStep(1), className: "bg-gray-200 hover:bg-gray-300 px-6 py-3 rounded-lg", children: "Zur\u00FCck" }), _jsx("button", { onClick: finishAndBack, className: "bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg", children: "Berechnungen Starten" })] })] })), _jsx("div", { className: "text-center", children: _jsx(Link, { to: "/home", className: "inline-block text-sm text-gray-500 hover:underline", children: "\u2190 Zur\u00FCck zur Startseite" }) })] }));
 }

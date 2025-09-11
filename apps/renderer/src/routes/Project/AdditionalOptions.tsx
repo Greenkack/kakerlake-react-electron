@@ -225,6 +225,7 @@ export default function AdditionalOptions() {
                 className="w-full rounded border border-slate-300 px-3 py-2" 
                 value={module_type_preference} 
                 onChange={(e) => setModuleTypePreference(e.target.value)}
+                title="Modul-Typ Präferenz auswählen"
               >
                 <option value="">Keine Präferenz</option>
                 <option value="mono">Monokristallin</option>

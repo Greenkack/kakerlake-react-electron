@@ -254,6 +254,7 @@ export default function DemandAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={currentHeatingType} 
               onChange={(e) => setCurrentHeatingType(e.target.value)}
+              title="Heizungstyp auswählen"
             >
               <option value="">Bitte wählen</option>
               <option value="gas">Gasheizung</option>
@@ -278,6 +279,7 @@ export default function DemandAnalysis() {
               className="w-full rounded border border-slate-300 px-3 py-2" 
               value={fuelType} 
               onChange={(e) => setFuelType(e.target.value)}
+              title="Brennstoff/Energieträger auswählen"
             >
               <option value="">Bitte wählen</option>
               <option value="gas">Erdgas</option>

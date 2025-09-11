@@ -99,6 +99,31 @@ const productsAPI = {
 
 contextBridge.exposeInMainWorld('productsAPI', productsAPI);
 
+// Database API (Direct Bridge to database_bridge.py)
+const databaseAPI = {
+  // Product operations
+  listProducts: (category?: string) => ipcRenderer.invoke('database:list_products', category),
+  addProduct: (productData: Record<string, unknown>) => ipcRenderer.invoke('database:add_product', productData),
+  updateProduct: (id: number, productData: Record<string, unknown>) => ipcRenderer.invoke('database:update_product', id, productData),
+  deleteProduct: (id: number) => ipcRenderer.invoke('database:delete_product', id),
+  getProductById: (id: number) => ipcRenderer.invoke('database:get_product_by_id', id),
+  getProductByModel: (modelName: string) => ipcRenderer.invoke('database:get_product_by_model', modelName),
+  listCategories: () => ipcRenderer.invoke('database:list_categories'),
+  listManufacturers: () => ipcRenderer.invoke('database:list_manufacturers'),
+  getProductsByManufacturer: (manufacturer: string) => ipcRenderer.invoke('database:get_products_by_manufacturer', manufacturer),
+  
+  // Brand logo operations
+  listBrandLogos: () => ipcRenderer.invoke('database:list_brand_logos'),
+  addBrandLogo: (brand: string, logoBase64: string, format?: string) => ipcRenderer.invoke('database:add_brand_logo', brand, logoBase64, format),
+  getBrandLogo: (brand: string) => ipcRenderer.invoke('database:get_brand_logo', brand),
+  deleteBrandLogo: (brand: string) => ipcRenderer.invoke('database:delete_brand_logo', brand),
+  
+  // Database management
+  initDatabase: () => ipcRenderer.invoke('database:init_database'),
+};
+
+contextBridge.exposeInMainWorld('databaseAPI', databaseAPI);
+
 // New Product Management API (mirrors Python admin_panel.py functionality)
 type ProductData = Record<string, unknown>;
 
@@ -159,6 +184,7 @@ contextBridge.exposeInMainWorld('calculationAPI', calculationAPI);
 contextBridge.exposeInMainWorld('api', {
   product: productAPI,
   calculation: calculationAPI,
+  database: databaseAPI,
   // Add direct Python bridge functions
   importProductsFromFile: (payload: Record<string, unknown>) => 
     ipcRenderer.invoke('import:products_from_file', payload),
@@ -182,6 +208,7 @@ export type ProjectsAPI = typeof projectsAPI;
 export type ImportAPI = typeof importAPI;
 export type ProductsAPI = typeof productsAPI;
 export type ProductAPI = typeof productAPI;
+export type DatabaseAPI = typeof databaseAPI;
 export type SystemAPI = typeof systemAPI;
 export type CalculationAPI = typeof calculationAPI;
 
@@ -193,10 +220,12 @@ declare global {
     projectsAPI: ProjectsAPI;
     importAPI: ImportAPI;
     productsAPI: ProductsAPI;
+    databaseAPI: DatabaseAPI;
     calculationAPI: CalculationAPI;
     api: {
       product: ProductAPI;
       calculation: CalculationAPI;
+      database: DatabaseAPI;
       importProductsFromFile: (payload: Record<string, unknown>) => Promise<any>;
     };
     systemAPI: SystemAPI;

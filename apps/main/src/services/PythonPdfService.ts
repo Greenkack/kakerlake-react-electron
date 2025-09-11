@@ -72,8 +72,6 @@ export class PythonPdfService {
       let command = 'generate_pv_pdf';
       if (pdfType === 'heatpump') {
         command = 'generate_heatpump_pdf';
-      } else if (pdfType === 'multi') {
-        command = 'generate_multi_pdfs';
       }
       
       const pythonScript = path.join(__dirname, 'pdf_generation_bridge.py');
