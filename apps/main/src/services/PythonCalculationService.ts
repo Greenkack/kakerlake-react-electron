@@ -185,8 +185,8 @@ export class PythonCalculationService {
       const payloadFile = path.join(tempDir, `calc_request_${Date.now()}.json`);
       fs.writeFileSync(payloadFile, JSON.stringify(payload, null, 2), 'utf-8');
 
-      // Call Python CLI
-      const pythonScript = path.join(process.cwd(), 'calculation_bridge.py');
+      // Call Python CLI - use comprehensive solar bridge
+      const pythonScript = path.join(__dirname, 'solar_calculation_bridge.py');
       
       return new Promise((resolve) => {
         const pythonProcess = spawn(this.pythonExecutable, [pythonScript, payloadFile], {
@@ -285,7 +285,7 @@ export class PythonCalculationService {
       const payloadFile = path.join(tempDir, `pricing_request_${Date.now()}.json`);
       fs.writeFileSync(payloadFile, JSON.stringify(payload, null, 2), 'utf-8');
 
-      const pythonScript = path.join(process.cwd(), 'calculation_bridge.py');
+      const pythonScript = path.join(__dirname, 'solar_calculation_bridge.py');
       
       return new Promise((resolve) => {
         const pythonProcess = spawn(this.pythonExecutable, [pythonScript, payloadFile], {

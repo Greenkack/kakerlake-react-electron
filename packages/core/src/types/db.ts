@@ -113,12 +113,19 @@ export interface Product {
   labor_hours?: number;
 }
 
-// PDF Generation Options - mirrors pdf_ui.py checkbox structure
+// PDF Generation Options - enhanced for 3 PDF systems
 export interface PDFGenerationOptions {
   extended_pages?: boolean;
   wp_additional_pages?: boolean;
   include_charts?: boolean;
   include_company_docs?: boolean;
+  
+  // New comprehensive PDF options
+  pdf_type?: 'pv' | 'heatpump' | 'multi';
+  company_info?: any;
+  companies?: any[];
+  page_count?: number;
+  output_filename?: string;
 }
 
 // Analysis Results structure for PDF generation

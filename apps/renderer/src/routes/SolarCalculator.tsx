@@ -500,13 +500,23 @@ export default function SolarCalculator(): JSX.Element {
   const errors: string[] = [];
   if (activeStep === 0) { // Module Step
     if (config.moduleQty <= 0) errors.push('Anzahl Module > 0 erforderlich');
+    if (!config.moduleBrand) errors.push('Modul-Hersteller wählen');
     if (!config.moduleModel) errors.push('Modul-Modell wählen');
-    if (!config.invModel) errors.push('Wechselrichter-Modell wählen');
-    if (config.invQty <= 0) errors.push('Anzahl Wechselrichter > 0 erforderlich');
-    if (config.withStorage && !config.storageModel) errors.push('Speicher-Modell wählen (wenn Speicher aktiviert)');
   }
   
-  if (activeStep === 1 && config.additionalComponents) { // Additional Components Step
+  if (activeStep === 1) { // Inverter Step
+    if (!config.invBrand) errors.push('Wechselrichter-Hersteller wählen');
+    if (!config.invModel) errors.push('Wechselrichter-Modell wählen');
+    if (config.invQty <= 0) errors.push('Anzahl Wechselrichter > 0 erforderlich');
+  }
+  
+  if (activeStep === 2) { // Storage Step
+    if (config.withStorage && !config.storageBrand) errors.push('Speicher-Hersteller wählen');
+    if (config.withStorage && !config.storageModel) errors.push('Speicher-Modell wählen');
+    if (config.withStorage && config.storageDesiredKWh <= 0) errors.push('Speicherkapazität > 0 erforderlich');
+  }
+  
+  if (activeStep === 3 && config.additionalComponents) { // Additional Components Step
     if (config.wallboxEnabled && !config.wallboxModel) errors.push('Wallbox-Modell wählen');
     if (config.emsEnabled && !config.emsModel) errors.push('EMS-Modell wählen');
     if (config.optimizerEnabled && !config.optimizerModel) errors.push('Optimizer-Modell wählen');
@@ -753,6 +763,195 @@ export default function SolarCalculator(): JSX.Element {
                 </div>
               </div>
             )}
+          </AccordionTab>
+
+          <AccordionTab header="⚡ Energiemanagementsystem">
+            <div className="mb-3">
+              <Checkbox
+                inputId="ems-checkbox"
+                checked={config.emsEnabled}
+                onChange={(e) => setConfig(prev => ({...prev, emsEnabled: !!e.checked}))}
+              />
+              <label htmlFor="ems-checkbox" className="ml-2">Energiemanagementsystem hinzufügen</label>
+            </div>
+            {config.emsEnabled && (
+              <div className="grid">
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.emsBrand}
+                    onChange={(e) => setConfig(prev => ({...prev, emsBrand: e.value, emsModel: ''}))}
+                    options={emsBrands.map(brand => ({ label: brand, value: brand }))}
+                    placeholder="Hersteller wählen"
+                    className="w-full"
+                  />
+                </div>
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.emsModel}
+                    onChange={(e) => setConfig(prev => ({...prev, emsModel: e.value}))}
+                    options={emsModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell }))}
+                    placeholder="Modell wählen"
+                    className="w-full"
+                    disabled={!config.emsBrand}
+                  />
+                </div>
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header="📈 Leistungsoptimierer">
+            <div className="mb-3">
+              <Checkbox
+                inputId="optimizer-checkbox"
+                checked={config.optimizerEnabled}
+                onChange={(e) => setConfig(prev => ({...prev, optimizerEnabled: !!e.checked}))}
+              />
+              <label htmlFor="optimizer-checkbox" className="ml-2">Leistungsoptimierer hinzufügen</label>
+            </div>
+            {config.optimizerEnabled && (
+              <div className="grid">
+                <div className="col-12 md:col-4">
+                  <Dropdown
+                    value={config.optimizerBrand}
+                    onChange={(e) => setConfig(prev => ({...prev, optimizerBrand: e.value, optimizerModel: ''}))}
+                    options={optimizerBrands.map(brand => ({ label: brand, value: brand }))}
+                    placeholder="Hersteller wählen"
+                    className="w-full"
+                  />
+                </div>
+                <div className="col-12 md:col-4">
+                  <Dropdown
+                    value={config.optimizerModel}
+                    onChange={(e) => setConfig(prev => ({...prev, optimizerModel: e.value}))}
+                    options={optimizerModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell }))}
+                    placeholder="Modell wählen"
+                    className="w-full"
+                    disabled={!config.optimizerBrand}
+                  />
+                </div>
+                <div className="col-12 md:col-4">
+                  <InputNumber
+                    value={config.optimizerQty}
+                    onValueChange={(e) => setConfig(prev => ({...prev, optimizerQty: e.value || 1}))}
+                    placeholder="Anzahl"
+                    className="w-full"
+                    min={1}
+                    max={100}
+                  />
+                </div>
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header="🏠 Solar Carport">
+            <div className="mb-3">
+              <Checkbox
+                inputId="carport-checkbox"
+                checked={config.carportEnabled}
+                onChange={(e) => setConfig(prev => ({...prev, carportEnabled: !!e.checked}))}
+              />
+              <label htmlFor="carport-checkbox" className="ml-2">Solar Carport hinzufügen</label>
+            </div>
+            {config.carportEnabled && (
+              <div className="grid">
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.carportBrand}
+                    onChange={(e) => setConfig(prev => ({...prev, carportBrand: e.value, carportModel: ''}))}
+                    options={carportBrands.map(brand => ({ label: brand, value: brand }))}
+                    placeholder="Hersteller wählen"
+                    className="w-full"
+                  />
+                </div>
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.carportModel}
+                    onChange={(e) => setConfig(prev => ({...prev, carportModel: e.value}))}
+                    options={carportModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell }))}
+                    placeholder="Modell wählen"
+                    className="w-full"
+                    disabled={!config.carportBrand}
+                  />
+                </div>
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header="🔋 Notstromversorgung">
+            <div className="mb-3">
+              <Checkbox
+                inputId="emergency-power-checkbox"
+                checked={config.emergencyPowerEnabled}
+                onChange={(e) => setConfig(prev => ({...prev, emergencyPowerEnabled: !!e.checked}))}
+              />
+              <label htmlFor="emergency-power-checkbox" className="ml-2">Notstromversorgung hinzufügen</label>
+            </div>
+            {config.emergencyPowerEnabled && (
+              <div className="grid">
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.emergencyPowerBrand}
+                    onChange={(e) => setConfig(prev => ({...prev, emergencyPowerBrand: e.value, emergencyPowerModel: ''}))}
+                    options={emergencyPowerBrands.map(brand => ({ label: brand, value: brand }))}
+                    placeholder="Hersteller wählen"
+                    className="w-full"
+                  />
+                </div>
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.emergencyPowerModel}
+                    onChange={(e) => setConfig(prev => ({...prev, emergencyPowerModel: e.value}))}
+                    options={emergencyPowerModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell }))}
+                    placeholder="Modell wählen"
+                    className="w-full"
+                    disabled={!config.emergencyPowerBrand}
+                  />
+                </div>
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header="🐦 Tierabwehrschutz">
+            <div className="mb-3">
+              <Checkbox
+                inputId="animal-protection-checkbox"
+                checked={config.animalProtectionEnabled}
+                onChange={(e) => setConfig(prev => ({...prev, animalProtectionEnabled: !!e.checked}))}
+              />
+              <label htmlFor="animal-protection-checkbox" className="ml-2">Tierabwehrschutz hinzufügen</label>
+            </div>
+            {config.animalProtectionEnabled && (
+              <div className="grid">
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.animalProtectionBrand}
+                    onChange={(e) => setConfig(prev => ({...prev, animalProtectionBrand: e.value, animalProtectionModel: ''}))}
+                    options={animalProtectionBrands.map(brand => ({ label: brand, value: brand }))}
+                    placeholder="Hersteller wählen"
+                    className="w-full"
+                  />
+                </div>
+                <div className="col-12 md:col-6">
+                  <Dropdown
+                    value={config.animalProtectionModel}
+                    onChange={(e) => setConfig(prev => ({...prev, animalProtectionModel: e.value}))}
+                    options={animalProtectionModels.map(product => ({ label: product.produkt_modell, value: product.produkt_modell }))}
+                    placeholder="Modell wählen"
+                    className="w-full"
+                    disabled={!config.animalProtectionBrand}
+                  />
+                </div>
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header="📝 Sonstige Anmerkungen">
+            <InputText
+              value={config.otherComponentNote}
+              onChange={(e) => setConfig(prev => ({...prev, otherComponentNote: e.target.value}))}
+              placeholder="Weitere Anmerkungen zu Zusatzkomponenten..."
+              className="w-full"
+            />
           </AccordionTab>
         </Accordion>
       )}

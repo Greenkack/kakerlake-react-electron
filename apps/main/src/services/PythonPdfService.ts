@@ -46,17 +46,17 @@ export class PythonPdfService {
     options: PDFGenerationOptions = {}
   ): Promise<{ success: boolean; filePath?: string; error?: string }> {
     try {
-      // Prepare payload for Python CLI
+      // Prepare payload for new PDF generation bridge
+      const pdfType = options.extended_pages ? 'pv' : (options.wp_additional_pages ? 'heatpump' : 'pv');
+      
       const payload = {
-        command: 'generate_pdf',
         project_data: projectData,
-        analysis_results: analysisResults,
-        options: {
-          extended_pages: options.extended_pages || false,
-          wp_additional_pages: options.wp_additional_pages || false,
-          include_charts: options.include_charts || true,
-          include_company_docs: options.include_company_docs || false,
-        }
+        calculation_results: analysisResults,
+        company_info: options.company_info || {},
+        output_file: `${pdfType}_angebot_${Date.now()}.pdf`,
+        pdf_type: pdfType,
+        page_count: options.wp_additional_pages ? 16 : 7,
+        companies: options.companies || []
       };
 
       // Write payload to temp file
@@ -68,11 +68,18 @@ export class PythonPdfService {
       const payloadFile = path.join(tempDir, `pdf_request_${Date.now()}.json`);
       fs.writeFileSync(payloadFile, JSON.stringify(payload, null, 2), 'utf-8');
 
-      // Call Python CLI
-      const pythonScript = path.join(process.cwd(), 'pdf_generation_bridge.py');
+      // Determine command and call Python CLI
+      let command = 'generate_pv_pdf';
+      if (pdfType === 'heatpump') {
+        command = 'generate_heatpump_pdf';
+      } else if (pdfType === 'multi') {
+        command = 'generate_multi_pdfs';
+      }
+      
+      const pythonScript = path.join(__dirname, 'pdf_generation_bridge.py');
       
       return new Promise((resolve) => {
-        const pythonProcess = spawn(this.pythonExecutable, [pythonScript, payloadFile], {
+        const pythonProcess = spawn(this.pythonExecutable, [pythonScript, command, payloadFile], {
           cwd: process.cwd(),
           stdio: ['pipe', 'pipe', 'pipe']
         });

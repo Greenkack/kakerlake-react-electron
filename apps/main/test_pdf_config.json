@@ -1,0 +1,37 @@
+{
+  "project_data": {
+    "customer_data": {
+      "first_name": "Max",
+      "last_name": "Mustermann",
+      "street": "Musterstraße 123",
+      "city": "München",
+      "zip_code": "80331",
+      "email": "max@mustermann.de",
+      "phone": "+49 89 12345678"
+    }
+  },
+  "calculation_results": {
+    "anlage_kwp": 8.5,
+    "annual_pv_production_kwh": 8075,
+    "module_count_total": 20,
+    "total_investment_netto": 18500.00,
+    "total_investment_brutto": 22015.00,
+    "self_supply_rate_percent": 72.5,
+    "autarky_rate_percent": 65.2,
+    "amortization_time_years": 8.9,
+    "annual_financial_benefit_year1": 2080.00,
+    "annual_co2_savings_kg": 3820,
+    "co2_savings_25_years_kg": 95500,
+    "einspeiseverguetung_euro_per_kwh": 0.0792,
+    "stromkostenersparnis_year1": 1820.00
+  },
+  "company_info": {
+    "name": "Solar Solutions GmbH",
+    "street": "Sonnenstraße 45",
+    "city": "München", 
+    "zip_code": "80333",
+    "phone": "+49 89 87654321",
+    "email": "info@solar-solutions.de"
+  },
+  "output_file": "test_pv_angebot.pdf"
+}

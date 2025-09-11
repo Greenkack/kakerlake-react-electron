@@ -14,7 +14,20 @@ declare const __dirname: string;
 declare const process: NodeJS.Process;
 
 function runPy(...args: string[]): Promise<string> {
-	const script = path.resolve(process.cwd(), '..', '..', 'solar_calculator_bridge.py');
+	// Use comprehensive solar_calculation_bridge.py for all solar-related commands
+	const solarCommands = [
+		'get_pv_manufacturers', 'get_pv_models', 'get_inverter_manufacturers', 'get_inverter_models',
+		'get_storage_manufacturers', 'get_storage_models', 'get_wallbox_manufacturers', 'get_wallbox_models',
+		'get_ems_manufacturers', 'get_ems_models', 'get_optimizer_manufacturers', 'get_optimizer_models',
+		'get_carport_manufacturers', 'get_carport_models', 'get_emergency_power_manufacturers', 'get_emergency_power_models',
+		'get_animal_protection_manufacturers', 'get_animal_protection_models', 'perform_calculations'
+	];
+	
+	const isSolarCommand = args.length > 0 && solarCommands.includes(args[0]);
+	const script = isSolarCommand 
+		? path.resolve(__dirname, 'solar_calculation_bridge.py')  // Comprehensive solar script
+		: path.resolve(process.cwd(), '..', '..', 'calculation_bridge.py');  // Original fallback
+		
 	const isWin = process.platform === 'win32';
 	const candidates: Array<[string, string[]]> = isWin
 		? [['python', []], ['py', ['-3']]]

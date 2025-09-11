@@ -1,0 +1,47 @@
+{
+  "command": "perform_calculations",
+  "configuration": {
+    "selectedModules": [
+      {
+        "id": "1",
+        "name": "A400-MAH54Mb",
+        "manufacturer": "Aiko Solar",
+        "power_wp": 400,
+        "price_netto": 120.0,
+        "count": 20
+      }
+    ],
+    "selectedInverters": [
+      {
+        "id": "9",
+        "name": "SE5K-RWS",
+        "manufacturer": "SolarEdge",
+        "power_kw": 5.0,
+        "price_netto": 850.0,
+        "count": 1
+      }
+    ],
+    "selectedBatteries": [
+      {
+        "id": "17",
+        "name": "Powerwall 2",
+        "manufacturer": "Tesla",
+        "capacity_kwh": 13.5,
+        "price_netto": 8500.0,
+        "count": 1
+      }
+    ],
+    "additionalComponents": [],
+    "consumptionData": {
+      "annual_consumption_kwh": 4500
+    },
+    "technicalParams": {
+      "specific_yield_kwh_per_kwp": 950
+    }
+  },
+  "options": {
+    "include_charts": true,
+    "include_financial_analysis": true,
+    "include_environmental_analysis": true
+  }
+}
